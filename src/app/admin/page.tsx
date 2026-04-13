@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getUsers, createUser, deleteUser, getSession, logout, User, UserRole } from "@/lib/auth";
+import { useTheme } from "@/lib/ThemeContext";
 
 interface Template {
   id: string;
@@ -26,14 +27,7 @@ interface Batch {
   createdAt: string;
 }
 
-const defaultTemplates: Template[] = [
-  { id: "1", name: "Endorsement Letter", description: "School endorsement for practicum", category: "Letter", createdAt: "2026-01-01" },
-  { id: "2", name: "Request Letter", description: "Request for company acceptance", category: "Letter", createdAt: "2026-01-01" },
-  { id: "3", name: "Waiver Form", description: "Company liability waiver", category: "Form", createdAt: "2026-01-01" },
-  { id: "4", name: "Certificate Request", description: "Request for completion certificate", category: "Letter", createdAt: "2026-01-01" },
-  { id: "5", name: "Excuse Letter", description: "Absence or late excuse letter", category: "Letter", createdAt: "2026-01-01" },
-  { id: "6", name: "Evaluation Form", description: "Performance evaluation form", category: "Form", createdAt: "2026-01-01" },
-];
+const defaultTemplates: Template[] = [];
 
 export default function AdminPage() {
   const router = useRouter();
@@ -47,6 +41,8 @@ export default function AdminPage() {
   const [studentAdvisers, setStudentAdvisers] = useState<StudentAdviser[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const { darkMode, setDarkMode } = useTheme();
   const [formData, setFormData] = useState({
     studentId: "",
     name: "",
@@ -259,15 +255,95 @@ export default function AdminPage() {
             {activeTab === "monitoring" && "System Monitoring"}
           </h2>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: "#F0F7FF" }}>
-              <span className="font-medium text-sm" style={{ color: "#00529B" }}>{session.name.charAt(0)}</span>
-            </div>
-            <div>
-              <p className="text-sm font-medium" style={{ color: "#1E293B" }}>{session.name}</p>
-              <p className="text-xs" style={{ color: "#64748B" }}>Admin</p>
-            </div>
+            <button 
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-3 p-2 -m-2 rounded-xl transition-colors"
+            >
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: "#F0F7FF" }}>
+                <span className="font-medium text-sm" style={{ color: "#00529B" }}>{session.name.charAt(0)}</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium" style={{ color: "#1E293B" }}>{session.name}</p>
+                <p className="text-xs" style={{ color: "#64748B" }}>Admin</p>
+              </div>
+            </button>
           </div>
         </header>
+
+        {/* User Menu Dropdown */}
+        {showUserMenu && (
+          <div 
+            className="absolute right-8 top-20 w-64 rounded-2xl overflow-hidden z-50"
+            style={{ 
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E2E8F0",
+              boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15)'
+            }}
+          >
+            {/* User Info */}
+            <div className="px-4 py-3 border-b" style={{ borderColor: darkMode ? "#475569" : "#E2E8F0" }}>
+              <p className="font-semibold text-sm" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>{session.name}</p>
+              <p className="text-xs" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>ID: {session.studentId}</p>
+            </div>
+
+            {/* Dark Mode Toggle */}
+            <button 
+              onClick={() => setDarkMode(!darkMode)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-opacity-50"
+              style={{ backgroundColor: darkMode ? "#1E293B" : "#F8FAFC" }}
+            >
+              <div className="flex items-center gap-3">
+                {darkMode ? (
+                  <svg className="w-5 h-5" style={{ color: darkMode ? "#F8FAFC" : "#64748B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" style={{ color: darkMode ? "#94A3B8" : "#64748B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
+                <span className="text-sm" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Dark Mode</span>
+              </div>
+              <div 
+                className={`w-10 h-5 rounded-full relative transition-colors ${darkMode ? 'bg-blue-500' : 'bg-gray-300'}`}
+              >
+                <div 
+                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${darkMode ? 'left-5' : 'left-0.5'}`}
+                />
+              </div>
+            </button>
+
+            {/* Profile */}
+            <button 
+              onClick={() => { setShowUserMenu(false); router.push("/profile"); }}
+              className="w-full flex items-center gap-3 px-4 py-3 border-t hover:bg-opacity-50"
+              style={{ 
+                borderColor: darkMode ? "#475569" : "#E2E8F0",
+                backgroundColor: darkMode ? "#334155" : "#FFFFFF"
+              }}
+            >
+              <svg className="w-5 h-5" style={{ color: darkMode ? "#94A3B8" : "#64748B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span className="text-sm" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Profile</span>
+            </button>
+
+            {/* Logout */}
+            <button 
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 border-t hover:bg-opacity-50"
+              style={{ 
+                borderColor: darkMode ? "#475569" : "#E2E8F0",
+                backgroundColor: darkMode ? "#334155" : "#FFFFFF"
+              }}
+            >
+              <svg className="w-5 h-5" style={{ color: "#DC2626" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span className="text-sm" style={{ color: "#DC2626" }}>Logout</span>
+            </button>
+          </div>
+        )}
 
         <div className="p-8">
           {activeTab === "users" && (

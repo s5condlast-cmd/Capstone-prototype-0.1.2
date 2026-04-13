@@ -20,10 +20,10 @@ const sampleNotifications: Notification[] = [
   { id: "4", type: "info", message: "AI report ready for review", time: "2d ago", read: true },
 ];
 
-export default function DTRPage() {
+export default function EvaluationPage() {
   const router = useRouter();
   const [session, setSession] = useState<User | null>(null);
-  const [activeNav, setActiveNav] = useState("dtr");
+  const [activeNav, setActiveNav] = useState("evaluation");
   const [isUrgent, setIsUrgent] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [fileName, setFileName] = useState("");
@@ -200,7 +200,7 @@ export default function DTRPage() {
 
       <main className="flex-1 overflow-auto">
         <header className={`px-8 py-4 flex items-center justify-between relative border-b ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Daily Time Record (DTR)</h2>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Evaluation</h2>
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setShowNotifications(!showNotifications)}
@@ -364,12 +364,12 @@ export default function DTRPage() {
           </div>
           <div className={`p-6 rounded-2xl ${darkMode ? 'bg-slate-900 border border-slate-800' : 'bg-white shadow-sm'}`}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">DTR Overview</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Evaluation</h3>
               <button onClick={handleFileUpload} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-blue-600 text-white">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                Upload DTR
+                Upload
               </button>
             </div>
 
@@ -408,10 +408,10 @@ export default function DTRPage() {
                     <button onClick={() => {
                       const submission = {
                         id: Date.now().toString(),
-                        type: "dtr",
+                        type: "evaluation",
                         studentName: session?.name || "Student",
                         studentId: session?.studentId || "",
-                        title: `DTR - ${fileName}`,
+                        title: `Evaluation - ${fileName}`,
                         status: "pending",
                         submittedAt: new Date().toISOString(),
                         isUrgent,
@@ -419,11 +419,11 @@ export default function DTRPage() {
                       };
                       const existingSubs = JSON.parse(localStorage.getItem("practicum_submissions") || "[]");
                       localStorage.setItem("practicum_submissions", JSON.stringify([...existingSubs, submission]));
-                      alert("DTR submitted for review!");
+                      alert("Evaluation submitted for review!");
                       setUploadedFile(null);
                       setFileName("");
                       setIsUrgent(false);
-                    }} className="px-4 py-2 rounded-xl text-sm font-medium bg-green-600 text-white">Submit DTR</button>
+                    }} className="px-4 py-2 rounded-xl text-sm font-medium bg-green-600 text-white">Submit</button>
                   </div>
               </div>
             ) : (
@@ -431,7 +431,7 @@ export default function DTRPage() {
                 <svg className="w-12 h-12 mb-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                <p className="text-sm font-medium mb-2 text-slate-900 dark:text-white">Upload your Daily Time Record</p>
+                <p className="text-sm font-medium mb-2 text-slate-900 dark:text-white">Upload your Evaluation</p>
                 <p className="text-xs mb-4 text-slate-500 dark:text-slate-400">Supported formats: PDF, DOCX, JPG, PNG</p>
                 <button onClick={handleFileUpload} className="px-4 py-2 rounded-xl text-sm font-medium bg-blue-600 text-white">Choose File</button>
               </div>
