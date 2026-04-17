@@ -27,9 +27,9 @@ export const DEMO_USERS: Record<UserRole, User> = {
   },
   student: {
     id: "student-001",
-    studentId: "STUDENT001",
-    name: "John Dwayne B. Guaniso",
-    email: "john.guaniso@student.edu",
+    studentId: "STUDENT-001",
+    name: "Demo Student",
+    email: "student1@practicum.edu",
     role: "student",
   },
 };

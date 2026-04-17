@@ -63,8 +63,8 @@ export default function JournalPage() {
         {
           id: "1",
           type: "journal",
-          studentName: "John Dwayne",
-          studentId: "IT-2021-001",
+          studentName: "Demo Student",
+          studentId: "STUDENT-001",
           title: "Journal - 04/14/2026",
           content: "Today I worked on implementing the user authentication system. I created the login page with form validation and integrated it with the backend API. I also fixed a bug in the session management that was causing users to be logged out unexpectedly. Tomorrow I will start working on the dashboard components.",
           isUrgent: false,
@@ -76,8 +76,8 @@ export default function JournalPage() {
         {
           id: "2",
           type: "journal",
-          studentName: "John Dwayne",
-          studentId: "IT-2021-001",
+          studentName: "Demo Student",
+          studentId: "STUDENT-001",
           title: "Journal - 04/13/2026",
           content: "Completed the database schema design for the practicum management system. Created tables for students, advisors, journals, and documents. Implemented the CRUD operations for the journal entries.",
           isUrgent: true,
@@ -90,8 +90,8 @@ export default function JournalPage() {
         {
           id: "3",
           type: "journal",
-          studentName: "John Dwayne",
-          studentId: "IT-2021-001",
+          studentName: "Demo Student",
+          studentId: "STUDENT-001",
           title: "Journal - 04/12/2026",
           content: "Attended the weekly meeting with my advisor. Discussed the project timeline and deliverables. Reviewed the requirements document and clarified some ambiguities.",
           isUrgent: false,

@@ -402,19 +402,10 @@ export default function MOAPage() {
         )}
 
         <div className="p-8">
-          <div className="mb-6">
-            <h3 className="text-lg font-bold" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Requirements</h3>
-          </div>
-          <div className="space-y-6">
-            <div className="p-6 rounded-2xl" style={{ backgroundColor: darkMode ? "#334155" : "#FFFFFF", boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 p-6 rounded-2xl" style={{ backgroundColor: darkMode ? "#334155" : "#FFFFFF", boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}>
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>MOA Overview</h3>
-                <button onClick={handleFileUpload} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium" style={{ backgroundColor: "#00529B", color: "white" }}>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  Upload MOA
-                </button>
+                <h3 className="text-lg font-semibold" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Upload Your Memorandum of Agreement</h3>
               </div>
 
               {uploadedFile ? (
@@ -430,43 +421,29 @@ export default function MOAPage() {
                       <button onClick={() => { setUploadedFile(null); setFileName(""); }} style={{ color: darkMode ? "#94A3B8" : "#64748B", background: "none", border: "none", cursor: "pointer" }}>✕</button>
                     </div>
                   </div>
-                  <div className="p-4 rounded-xl border" style={{ borderColor: darkMode ? "#475569" : "#E2E8F0", minHeight: "400px" }}>
-                    <div className="flex items-center justify-center h-full" style={{ minHeight: "350px", color: darkMode ? "#94A3B8" : "#64748B" }}>
+                  <div className="p-4 rounded-xl border" style={{ borderColor: darkMode ? "#475569" : "#E2E8F0", minHeight: "200px" }}>
+                    <div className="flex items-center justify-center h-full" style={{ minHeight: "150px", color: darkMode ? "#94A3B8" : "#64748B" }}>
                       <div className="text-center">
                         <svg className="w-12 h-12 mx-auto mb-3" style={{ color: darkMode ? "#64748B" : "#94A3B8" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         <p className="text-sm" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>File preview</p>
-                        <p className="text-xs" style={{ color: darkMode ? "#64748B" : "#94A3B8" }}>PDF/DOCX viewer would render here</p>
                       </div>
                     </div>
                   </div>
-                    <div className="flex items-center justify-between pt-4">
+                  <div className="flex items-center justify-between pt-4">
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Mark as Urgent</span>
                       <button onClick={() => setIsUrgent(!isUrgent)} className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors" style={{ backgroundColor: isUrgent ? "#DC2626" : darkMode ? "#475569" : "#E2E8F0" }}>
                         <span className="inline-block h-6 w-6 rounded-full bg-white shadow-lg transform transition-transform duration-200" style={{ transform: isUrgent ? "translateX(28px)" : "translateX(4px)" }} />
                       </button>
-                      {isUrgent && <span className="text-xs font-medium" style={{ color: "#DC2626" }}>Urgent - Adviser will be notified</span>}
                     </div>
                     <button onClick={() => {
-                      const submission = {
-                        id: Date.now().toString(),
-                        type: "moa",
-                        studentName: session?.name || "Student",
-                        studentId: session?.studentId || "",
-                        title: `MOA - ${fileName}`,
-                        status: "pending",
-                        submittedAt: new Date().toISOString(),
-                        isUrgent,
-                        fileName,
-                      };
+                      const submission = { id: Date.now().toString(), type: "moa", studentName: session?.name || "Student", studentId: session?.studentId || "", title: `MOA - ${fileName}`, status: "pending", submittedAt: new Date().toISOString(), isUrgent, fileName };
                       const existingSubs = JSON.parse(localStorage.getItem("practicum_submissions") || "[]");
                       localStorage.setItem("practicum_submissions", JSON.stringify([...existingSubs, submission]));
                       alert("MOA submitted for review!");
-                      setUploadedFile(null);
-                      setFileName("");
-                      setIsUrgent(false);
+                      setUploadedFile(null); setFileName(""); setIsUrgent(false);
                     }} className="px-4 py-2 rounded-xl text-sm font-medium" style={{ backgroundColor: "#16A34A", color: "white" }}>Submit MOA</button>
                   </div>
                 </div>
@@ -483,22 +460,21 @@ export default function MOAPage() {
             </div>
 
             <div className="p-6 rounded-2xl" style={{ backgroundColor: darkMode ? "#334155" : "#FFFFFF", boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}>
-              <h3 className="text-lg font-semibold mb-4" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Adviser Revisions</h3>
-              {sampleRevisions.length > 0 ? (
-                <div className="space-y-3">
-                  {sampleRevisions.map((rev) => (
-                    <div key={rev.id} className="p-4 rounded-xl" style={{ backgroundColor: "#FEF3C7", border: "1px solid #F59E0B" }}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium" style={{ color: "#92400E" }}>{rev.adviser}</span>
-                        <span className="text-xs" style={{ color: "#B45309" }}>{rev.date}</span>
-                      </div>
-                      <p className="text-sm" style={{ color: "#92400E" }}>{rev.note}</p>
-                    </div>
-                  ))}
+              <h3 className="text-lg font-semibold mb-4" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>About MOA</h3>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium mb-1" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Memorandum of Agreement (MOA)</p>
+                  <p className="text-xs" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>Company partnership requirement document.</p>
                 </div>
-              ) : (
-                <p className="text-sm" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>No revisions yet.</p>
-              )}
+                <div>
+                  <p className="text-sm font-medium mb-1" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Student Task</p>
+                  <p className="text-xs" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>Submit basic information / Wait for approval</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium mb-1" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Status</p>
+                  <p className="text-xs" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>Pending / Approved</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
