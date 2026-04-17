@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/ThemeContext";
 import ThemeWrapper from "@/lib/ThemeWrapper";
+import { APP_DESCRIPTION, APP_NAME } from "@/lib/config";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -10,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Practicum System",
-  description: "AI-Powered Practicum Management System",
+  title: APP_NAME,
+  description: APP_DESCRIPTION,
 };
 
 export default function RootLayout({

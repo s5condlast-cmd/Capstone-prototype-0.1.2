@@ -2,7 +2,15 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+1. Copy the example env file:
+
+```bash
+copy .env.example .env.local
+```
+
+2. Edit `.env.local` if you want to change demo names, emails, or future API settings.
+
+3. Run the development server:
 
 ```bash
 npm run dev
@@ -19,6 +27,20 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Environment Variables
+
+See `.env.example` for the available config values.
+
+- `NEXT_PUBLIC_APP_NAME`
+- `NEXT_PUBLIC_APP_DESCRIPTION`
+- `NEXT_PUBLIC_ADMIN_NAME`
+- `NEXT_PUBLIC_ADMIN_EMAIL`
+- `NEXT_PUBLIC_ADVISOR_NAME`
+- `NEXT_PUBLIC_ADVISOR_EMAIL`
+- `NEXT_PUBLIC_STUDENT_NAME`
+- `NEXT_PUBLIC_STUDENT_EMAIL`
+- `NEXT_PUBLIC_API_URL`
 
 ## Learn More
 

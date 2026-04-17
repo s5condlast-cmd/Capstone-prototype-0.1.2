@@ -1,5 +1,14 @@
 "use client";
 
+import {
+  DEMO_ADMIN_EMAIL,
+  DEMO_ADMIN_NAME,
+  DEMO_ADVISOR_EMAIL,
+  DEMO_ADVISOR_NAME,
+  DEMO_STUDENT_EMAIL,
+  DEMO_STUDENT_NAME,
+} from "./config";
+
 export interface User {
   id: string;
   studentId: string;
@@ -14,22 +23,22 @@ export const DEMO_USERS: Record<UserRole, User> = {
   admin: {
     id: "admin-001",
     studentId: "ADMIN001",
-    name: "Admin User",
-    email: "admin@practicum.edu",
+    name: DEMO_ADMIN_NAME,
+    email: DEMO_ADMIN_EMAIL,
     role: "admin",
   },
   advisor: {
     id: "advisor-001",
     studentId: "ADVISOR001",
-    name: "Ms. Rodriguez",
-    email: "rodriguez@practicum.edu",
+    name: DEMO_ADVISOR_NAME,
+    email: DEMO_ADVISOR_EMAIL,
     role: "advisor",
   },
   student: {
     id: "student-001",
     studentId: "STUDENT-001",
-    name: "Demo Student",
-    email: "student1@practicum.edu",
+    name: DEMO_STUDENT_NAME,
+    email: DEMO_STUDENT_EMAIL,
     role: "student",
   },
 };
