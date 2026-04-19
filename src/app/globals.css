@@ -5,6 +5,9 @@
 @theme {
   --font-sans: "Geist", sans-serif;
   --font-mono: "Geist Mono", monospace;
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
 }
 
 :root {
