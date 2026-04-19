@@ -2,8 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getSession, logout, User } from "@/lib/auth";
-import { useTheme } from "@/lib/ThemeContext";
+import { getSession } from "@/lib/auth";
+import Link from "next/link";
+import StudentLayout from "@/components/StudentLayout";
+
+/* ─── Types ─── */
+interface Submission {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  studentId?: string;
+  feedback?: string;
+  date?: string;
+  createdAt?: string;
+}
 
 interface DailyEntry {
   id: string;
@@ -13,724 +26,344 @@ interface DailyEntry {
   createdAt: string;
 }
 
-interface Notification {
+interface ActivityItem {
   id: string;
-  type: "success" | "info" | "warning";
+  icon: "check" | "cross" | "comment" | "upload";
   message: string;
   time: string;
-  read: boolean;
+  color: string;
 }
 
-interface Stats {
-  totalEntries: number;
-  totalHours: number;
-  pendingSubmissions: number;
-  approved: number;
-  rejected: number;
-  pending: number;
-}
-
-const sampleNotifications: Notification[] = [
-  { id: "1", type: "success", message: "Journal entry approved", time: "2h ago", read: false },
-  { id: "2", type: "info", message: "New template available", time: "5h ago", read: false },
-  { id: "3", type: "warning", message: "Submit weekly report", time: "1d ago", read: true },
-  { id: "4", type: "info", message: "AI report ready for review", time: "2d ago", read: true },
-];
-
-const sampleAnnouncements = [
-  { id: "1", title: "Revision Required", message: "Your Journal Entry #3 needs revision. Please review the advisor's feedback and resubmit.", time: "2h ago" },
-];
-
-const sampleDeadlines = [
-  { id: "1", title: "Monthly Progress Report", date: "April 25, 2026", type: "journal" },
-  { id: "2", title: "MOA Renewal", date: "April 30, 2026", type: "moa" },
-  { id: "3", title: "Quarterly DTR Summary", date: "May 5, 2026", type: "dtr" },
-];
-
-const sampleRecentEntries = [
-  { id: "1", type: "journal", title: "Daily Journal Entry", date: "April 14, 2026", content: "Completed task on database optimization...", hours: "4h", status: "pending" },
-  { id: "2", type: "dtr", title: "DTR - Week 12", date: "April 13, 2026", content: "40 hours completed this week...", hours: "40h", status: "approved" },
-  { id: "3", type: "moa", title: "MOA Submission", date: "April 10, 2026", content: "Company partnership agreement...", hours: "2h", status: "approved" },
-  { id: "5", type: "dtr", title: "DTR - Week 11", date: "April 6, 2026", content: "38 hours completed this week...", hours: "38h", status: "approved" },
-];
+/* ─── Requirement definitions ─── */
+const REQUIRED_TYPES = ["journal", "dtr", "moa", "evaluation"] as const;
+const REQUIREMENT_LABELS: Record<string, string> = {
+  journal: "Journal",
+  dtr: "Daily Time Record",
+  moa: "Memorandum of Agreement",
+  evaluation: "Evaluation Form",
+};
 
 export default function Dashboard() {
   const router = useRouter();
-  const [session, setSession] = useState<User | null>(null);
-  const [entries, setEntries] = useState<DailyEntry[]>([]);
-  const [stats, setStats] = useState<Stats>({
-    totalEntries: 0,
-    totalHours: 0,
-    pendingSubmissions: 0,
-    approved: 0,
-    rejected: 0,
-    pending: 0,
-  });
-  const [activeNav, setActiveNav] = useState("dashboard");
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>(sampleNotifications);
-  const [announcements] = useState(sampleAnnouncements);
-  const [deadlines] = useState(sampleDeadlines);
-  const [recentEntries] = useState(sampleRecentEntries);
-  const { darkMode, setDarkMode } = useTheme();
+
+  /* data */
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [journals, setJournals] = useState<any[]>([]);
+  const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
+
+  /* derived stats */
+  const [pending, setPending] = useState(0);
+  const [rejected, setRejected] = useState(0);
+  const [completionPct, setCompletionPct] = useState(0);
+  const [submittedTypes, setSubmittedTypes] = useState<string[]>([]);
+  const [missingTypes, setMissingTypes] = useState<string[]>([]);
+
+  /* alerts */
+  const [alerts, setAlerts] = useState<{ icon: string; message: string; severity: "error" | "warning" | "info" }[]>([]);
 
   useEffect(() => {
-    const currentSession = getSession();
-    if (!currentSession || currentSession.role !== "student") {
-      if (currentSession?.role === "admin") {
-        router.push("/admin");
-      } else if (currentSession?.role === "advisor") {
-        router.push("/advisor");
-      } else {
-        router.push("/login");
-      }
-      return;
-    }
-    setSession(currentSession);
+    const s = getSession();
+    if (!s || s.role !== "student") return;
 
-    const storedEntries = localStorage.getItem("practicum-daily-journal");
-    const storedDocs = localStorage.getItem("practicum_documents");
-    const storedJournals = localStorage.getItem("practicum_journals");
-    
-    let parsedEntries: DailyEntry[] = [];
-    let parsedDocs: any[] = [];
-    let parsedJournals: any[] = [];
-    
-    if (storedEntries) {
-      parsedEntries = JSON.parse(storedEntries);
-      setEntries(parsedEntries);
-    }
-    
-    if (storedDocs) {
-      parsedDocs = JSON.parse(storedDocs);
-    }
-    
-    if (storedJournals) {
-      parsedJournals = JSON.parse(storedJournals);
-    }
-    
-    const totalHours = parsedEntries.reduce((acc: number, entry: DailyEntry) => {
-      return acc + (parseFloat(entry.totalHours) || 0);
-    }, 0);
+    const rawSubs: Submission[] = JSON.parse(localStorage.getItem("practicum_submissions") || "[]");
+    const rawJournals: any[] = JSON.parse(localStorage.getItem("practicum_journals") || "[]");
+    const rawDocs: any[] = JSON.parse(localStorage.getItem("practicum_documents") || "[]");
 
-    const allSubmissions = [...parsedDocs, ...parsedJournals];
-    const approved = allSubmissions.filter((d: any) => d.status === "approved").length;
-    const rejected = allSubmissions.filter((d: any) => d.status === "rejected").length;
-    const pending = allSubmissions.filter((d: any) => d.status === "pending" || d.status === "draft").length;
+    const mySubs = rawSubs.filter((sub) => sub.studentId === s.studentId);
+    setSubmissions(mySubs);
+    setJournals(rawJournals);
 
-    setStats({
-      totalEntries: parsedEntries.length,
-      totalHours,
-      pendingSubmissions: pending,
-      approved,
-      rejected,
-      pending,
+    /* Counts */
+    const all = [...mySubs, ...rawDocs, ...rawJournals];
+    setRejected(all.filter((d) => d.status === "rejected").length);
+    setPending(all.filter((d) => d.status === "pending" || d.status === "draft").length);
+
+    /* Completion */
+    const typesSubmitted = [...new Set(mySubs.map((sub) => sub.type?.toLowerCase()))];
+    setSubmittedTypes(typesSubmitted);
+    const missing = REQUIRED_TYPES.filter((t) => !typesSubmitted.includes(t));
+    setMissingTypes(missing);
+    setCompletionPct(Math.round(((REQUIRED_TYPES.length - missing.length) / REQUIRED_TYPES.length) * 100));
+
+    /* Alerts */
+    const alertList: typeof alerts = [];
+    missing.forEach((t) => {
+      alertList.push({ icon: "❗", message: `${REQUIREMENT_LABELS[t]} not submitted`, severity: "error" });
     });
+    mySubs.filter(s => s.status === "rejected").forEach(s => alertList.push({ icon: "⚠️", message: `${s.title} was rejected. Please review.`, severity: "warning" }));
+    mySubs.filter(s => s.status === "revision").forEach(s => alertList.push({ icon: "🔄", message: `${s.title} needs revision.`, severity: "warning" }));
+    
+    if (alertList.length === 0) alertList.push({ icon: "⏳", message: "Monthly Progress Report due April 25", severity: "info" });
+    setAlerts(alertList);
 
-    const submissions = JSON.parse(localStorage.getItem("practicum_submissions") || "[]");
-    const mySubs = submissions.filter((s: any) => s.studentId === currentSession?.studentId);
-    
-    const newNotifications: Notification[] = [];
-    mySubs.forEach((sub: any) => {
-      if (sub.status === "approved") {
-        newNotifications.push({ id: `${sub.id}-approved`, type: "success", message: `${sub.title} approved`, time: "Just now", read: false });
-      } else if (sub.status === "rejected") {
-        newNotifications.push({ id: `${sub.id}-rejected`, type: "warning", message: `${sub.title} rejected`, time: "Just now", read: false });
-      } else if (sub.status === "revision") {
-        newNotifications.push({ id: `${sub.id}-revision`, type: "info", message: `Revision requested for ${sub.title}`, time: "Just now", read: false });
-      }
+    /* Activity feed */
+    const feed: ActivityItem[] = [];
+    mySubs.slice(0, 6).forEach((sub) => {
+      if (sub.status === "approved") feed.push({ id: sub.id + "-a", icon: "check", message: `${sub.title} approved`, time: sub.date || sub.createdAt || "Just now", color: "green" });
+      else if (sub.status === "rejected") feed.push({ id: sub.id + "-r", icon: "cross", message: `${sub.title} rejected`, time: sub.date || sub.createdAt || "Just now", color: "red" });
+      else if (sub.status === "revision") feed.push({ id: sub.id + "-rev", icon: "comment", message: `Revision requested: ${sub.title}`, time: sub.date || sub.createdAt || "Just now", color: "amber" });
+      else feed.push({ id: sub.id + "-u", icon: "upload", message: `${sub.title} submitted`, time: sub.date || sub.createdAt || "Just now", color: "blue" });
     });
-    
-    if (newNotifications.length > 0) {
-      setNotifications([...newNotifications, ...sampleNotifications.slice(0, 2)]);
+    if (feed.length === 0) {
+      feed.push({ id: "s1", icon: "upload", message: "Journal Entry #1 submitted", time: "2 hours ago", color: "blue" });
+      feed.push({ id: "s2", icon: "check", message: "DTR - Week 12 approved", time: "1 day ago", color: "green" });
     }
+    setActivityFeed(feed);
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
+  const renderIcon = (name: string, className = "w-5 h-5") => {
+    const paths: Record<string, string> = {
+      journal: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
+      clock: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+      doc: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+      chart: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+      msg: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z",
+      check: "M5 13l4 4L19 7",
+      cross: "M6 18L18 6M6 6l12 12",
+    };
+    return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={paths[name] || ""} /></svg>;
   };
-
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
-  };
-
-const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: darkMode ? "#1E293B" : "#F8FAFC" }}>
-      <aside className="w-60 flex-shrink-0 flex flex-col" style={{ backgroundColor: darkMode ? "#1E293B" : "#FFFFFF", borderRight: darkMode ? "1px solid #475569" : "1px solid #E2E8F0" }}>
-        <div className="p-6 border-b" style={{ borderColor: darkMode ? "#475569" : "#E2E8F0" }}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #00529B 0%, #0073C7 100%)' }}>
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="font-bold text-sm" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Practicum</h1>
-              <p className="text-xs" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>System</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-4">
-          <ul className="space-y-1">
-            <li>
-              <button
-                onClick={() => {
-                  setActiveNav("dashboard");
-                  router.push("/dashboard");
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all"
-                style={{
-                  backgroundColor: activeNav === "dashboard" ? "#00529B" : "transparent",
-                  color: activeNav === "dashboard" ? "#FFFFFF" : "#64748B",
-                }}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-                Dashboard
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => router.push("/journal")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all"
-                style={{
-                  backgroundColor: activeNav === "journal" ? "#00529B" : "transparent",
-                  color: activeNav === "journal" ? "#FFFFFF" : "#64748B",
-                }}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Journal
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => router.push("/dtr")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all"
-                style={{
-                  backgroundColor: activeNav === "dtr" ? "#00529B" : "transparent",
-                  color: activeNav === "dtr" ? "#FFFFFF" : "#64748B",
-                }}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                DTR
-              </button>
-            </li>
+    <StudentLayout activeNav="dashboard">
+      <div className="flex flex-col lg:flex-row gap-6 md:gap-8 max-w-[1600px] mx-auto items-start">
+        
+        {/* ═══ LEFT/CENTER MAIN COLUMN ═══ */}
+        <div className="flex-1 space-y-6 md:space-y-8 min-w-0 w-full">
+          
+          {/* A. HERO SECTION */}
+          <section className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-6 md:p-8 text-white shadow-md relative overflow-hidden flex flex-col justify-center">
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-white opacity-10 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-40 h-40 rounded-full bg-white opacity-10 pointer-events-none" />
             
-            <li>
-              <button
-                onClick={() => router.push("/moa")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all"
-                style={{
-                  backgroundColor: activeNav === "moa" ? "#00529B" : "transparent",
-                  color: activeNav === "moa" ? "#FFFFFF" : "#64748B",
-                }}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                MOA
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => router.push("/evaluation")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all"
-                style={{
-                  backgroundColor: activeNav === "evaluation" ? "#00529B" : "transparent",
-                  color: activeNav === "evaluation" ? "#FFFFFF" : "#64748B",
-                }}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Evaluation
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => router.push("/documents")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all"
-                style={{
-                  backgroundColor: activeNav === "documents" ? "#00529B" : "transparent",
-                  color: activeNav === "documents" ? "#FFFFFF" : "#64748B",
-                }}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                Documents
-              </button>
-            </li>
-          </ul>
-        </nav>
-
-        <div className="p-4 border-t" style={{ borderColor: darkMode ? "#475569" : "#E2E8F0" }}>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium"
-            style={{ color: darkMode ? "#EF4444" : "#DC2626" }}
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        {/* Header */}
-        <header 
-          className="px-8 py-4 flex items-center justify-between relative"
-          style={{ backgroundColor: darkMode ? "#1E293B" : "#FFFFFF", borderBottom: darkMode ? "1px solid #475569" : "1px solid #E2E8F0" }}
-        >
-          <h2 className="text-lg font-bold" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Dashboard</h2>
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 rounded-xl transition-colors"
-              style={{ backgroundColor: darkMode ? "#334155" : "#F8FAFC", color: darkMode ? "#94A3B8" : "#64748B" }}
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-            <button 
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-3 p-2 -m-2 rounded-xl transition-colors"
-            >
-              <div 
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: darkMode ? "#334155" : "#F0F7FF" }}
-              >
-                <span className="font-medium text-sm" style={{ color: darkMode ? "#F8FAFC" : "#00529B" }}>{session?.name?.charAt(0) || "?"}</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>{session?.name || "Student"}</p>
-                <p className="text-xs" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>{session?.studentId || "Student"}</p>
-              </div>
-            </button>
-          </div>
-        </header>
-
-        {/* User Menu Dropdown */}
-        {showUserMenu && (
-          <div 
-            className="absolute right-8 top-20 w-64 rounded-2xl overflow-hidden z-50"
-            style={{ 
-              backgroundColor: darkMode ? "#334155" : "#FFFFFF",
-              border: darkMode ? "1px solid #475569" : "1px solid #E2E8F0",
-              boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15)'
-            }}
-          >
-            <div className="px-4 py-3 border-b" style={{ borderColor: darkMode ? "#475569" : "#E2E8F0" }}>
-              <p className="font-semibold text-sm" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>{session?.name || "Student"}</p>
-              <p className="text-xs" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>ID: {session?.studentId || "N/A"}</p>
-            </div>
-
-            <button 
-              onClick={() => setDarkMode(!darkMode)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-opacity-50"
-              style={{ backgroundColor: darkMode ? "#1E293B" : "#F8FAFC" }}
-            >
-              <div className="flex items-center gap-3">
-                {darkMode ? (
-                  <svg className="w-5 h-5" style={{ color: darkMode ? "#F8FAFC" : "#64748B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" style={{ color: darkMode ? "#94A3B8" : "#64748B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                )}
-                <span className="text-sm" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Dark Mode</span>
-              </div>
-              <div 
-                className={`w-10 h-5 rounded-full relative transition-colors ${darkMode ? 'bg-blue-500' : 'bg-gray-300'}`}
-              >
-                <div 
-                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${darkMode ? 'left-5' : 'left-0.5'}`}
-                />
-              </div>
-            </button>
-
-            <button 
-              onClick={() => { setShowUserMenu(false); router.push("/profile"); }}
-              className="w-full flex items-center gap-3 px-4 py-3 border-t hover:bg-opacity-50"
-              style={{ 
-                borderColor: darkMode ? "#475569" : "#E2E8F0",
-                backgroundColor: darkMode ? "#334155" : "#FFFFFF"
-              }}
-            >
-              <svg className="w-5 h-5" style={{ color: darkMode ? "#94A3B8" : "#64748B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span className="text-sm" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Profile</span>
-            </button>
-
-            <button 
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 border-t hover:bg-opacity-50"
-              style={{ 
-                borderColor: darkMode ? "#475569" : "#E2E8F0",
-                backgroundColor: darkMode ? "#334155" : "#FFFFFF"
-              }}
-            >
-              <svg className="w-5 h-5" style={{ color: "#DC2626" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              <span className="text-sm" style={{ color: "#DC2626" }}>Logout</span>
-            </button>
-          </div>
-        )}
-
-        {/* Notification Popup */}
-        {showNotifications && (
-          <div 
-            className="absolute right-8 top-20 w-80 rounded-2xl overflow-hidden z-50"
-            style={{ 
-              backgroundColor: darkMode ? "#334155" : "#FFFFFF",
-              border: darkMode ? "1px solid #475569" : "1px solid #E2E8F0",
-              boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15)'
-            }}
-          >
-            <div 
-              className="px-4 py-3 flex items-center justify-between"
-              style={{ borderBottom: darkMode ? "1px solid #475569" : "1px solid #E2E8F0" }}
-            >
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5" style={{ color: "#00529B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <span className="font-semibold text-sm" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Notifications</span>
-              </div>
-              <button 
-                onClick={() => setShowNotifications(false)}
-                className="p-1 rounded-lg hover:bg-slate-100"
-              >
-                <svg className="w-4 h-4" style={{ color: darkMode ? "#94A3B8" : "#64748B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Notification List */}
-            <div className="max-h-64 overflow-y-auto">
-              {notifications.map((notification) => (
-                <div 
-                  key={notification.id}
-                  className="px-4 py-3 flex items-start gap-3 border-b"
-                  style={{ borderBottom: darkMode ? "#475569" : "#F1F5F9" }}
-                >
-                  <div 
-                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      notification.type === "success" ? "bg-green-100" :
-                      notification.type === "warning" ? "bg-yellow-100" : "bg-blue-100"
-                    }`}
-                  >
-                    {notification.type === "success" && (
-                      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                    {notification.type === "warning" && (
-                      <svg className="w-4 h-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                    )}
-                    {notification.type === "info" && (
-                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>{notification.message}</p>
-                    <p className="text-xs" style={{ color: darkMode ? "#94A3B8" : "#94A3B8" }}>{notification.time}</p>
-                  </div>
-                  {!notification.read && (
-                    <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-2" />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Footer */}
-            <div className="px-4 py-3" style={{ backgroundColor: darkMode ? "#1E293B" : "#F8FAFC" }}>
-              <button 
-                onClick={markAllAsRead}
-                className="w-full py-2 text-sm font-medium rounded-lg"
-                style={{ color: "#00529B" }}
-              >
-                Mark all as read
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Dashboard Content */}
-        <div className="p-8">
-          <div className="mb-6">
-            <h3 className="text-lg font-bold" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Requirements</h3>
-          </div>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div 
-              className="p-6 rounded-2xl"
-              style={{ backgroundColor: darkMode ? "#334155" : "#FFFFFF", boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', border: darkMode ? "1px solid #475569" : "1px solid #E2E8F0" }}
-            >
-              <div className="flex items-center gap-4">
-                <div 
-                  className="w-12 h-12 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: darkMode ? "rgba(34, 197, 94, 0.2)" : "#DCFCE7" }}
-                >
-                  <svg className="w-6 h-6" style={{ color: darkMode ? "#22C55E" : "#16A34A" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>Approved</p>
-                  <p className="text-2xl font-bold" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>{stats.approved}</p>
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex-1">
+                <h2 className="text-2xl md:text-3xl font-bold mb-2">Welcome back! 👋</h2>
+                <p className="text-blue-100 mb-4 text-sm md:text-base">Here is your practicum progress overview</p>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm text-sm font-medium">
+                  <span className={`w-2 h-2 rounded-full ${completionPct >= 100 ? "bg-green-400" : "bg-yellow-400 animate-pulse"}`} />
+                  {completionPct >= 100 ? "Completed" : "In Progress"}
                 </div>
               </div>
-            </div>
 
-            <div 
-              className="p-6 rounded-2xl"
-              style={{ backgroundColor: darkMode ? "#334155" : "#FFFFFF", boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', border: darkMode ? "1px solid #475569" : "1px solid #E2E8F0" }}
-            >
-              <div className="flex items-center gap-4">
-                <div 
-                  className="w-12 h-12 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: darkMode ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2" }}
-                >
-                  <svg className="w-6 h-6" style={{ color: darkMode ? "#EF4444" : "#DC2626" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+              <div className="w-full md:w-64 bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/20">
+                <div className="flex justify-between items-end mb-2">
+                  <span className="text-sm text-blue-100">Overall Progress</span>
+                  <span className="text-2xl font-bold">{completionPct}%</span>
                 </div>
-                <div>
-                  <p className="text-sm" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>Rejected</p>
-                  <p className="text-2xl font-bold" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>{stats.rejected}</p>
+                <div className="w-full bg-black/20 rounded-full h-2.5 mb-2 overflow-hidden">
+                  <div className="bg-green-400 h-2.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${completionPct}%` }} />
                 </div>
+                <p className="text-xs text-blue-100">
+                  {REQUIRED_TYPES.length - missingTypes.length} of {REQUIRED_TYPES.length} requirements submitted
+                </p>
               </div>
             </div>
+          </section>
 
-            <div 
-              className="p-6 rounded-2xl"
-              style={{ backgroundColor: darkMode ? "#334155" : "#FFFFFF", boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', border: darkMode ? "1px solid #475569" : "1px solid #E2E8F0" }}
-            >
-              <div className="flex items-center gap-4">
-                <div 
-                  className="w-12 h-12 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: darkMode ? "rgba(245, 158, 11, 0.2)" : "#FEF3C7" }}
-                >
-                  <svg className="w-6 h-6" style={{ color: darkMode ? "#F59E0B" : "#D97706" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+          {/* C. SUMMARY CARDS */}
+          <section className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            <Link href="/documents" className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  {renderIcon("doc", "w-5 h-5")}
                 </div>
-                <div>
-                  <p className="text-sm" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>Pending</p>
-                  <p className="text-2xl font-bold" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>{stats.pendingSubmissions}</p>
+                <span className="text-3xl font-bold text-slate-900 dark:text-white leading-none">{submissions.length}</span>
+              </div>
+              <span className="text-xs font-medium text-slate-500 text-center">Documents Submitted</span>
+            </Link>
+            
+            <Link href="/journal" className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  {renderIcon("journal", "w-5 h-5")}
                 </div>
+                <span className="text-3xl font-bold text-slate-900 dark:text-white leading-none">{journals.length}</span>
               </div>
-            </div>
-          </div>
+              <span className="text-xs font-medium text-slate-500 text-center">Journals Completed</span>
+            </Link>
 
-          {/* Quick Actions */}
-          <div className="mb-8">
-            <h3 className="text-lg font-bold mb-4" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Quick Actions</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <button
-                onClick={() => router.push("/journal")}
-                className="flex items-center gap-4 p-4 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-                style={{ background: 'linear-gradient(135deg, #00529B 0%, #0073C7 100%)', boxShadow: '0 4px 14px 0 rgba(0, 82, 155, 0.3)' }}
-              >
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                <span className="text-white font-medium">New Journal Entry</span>
-              </button>
-
-              <button
-                onClick={() => alert("Documents coming soon!")}
-                className="flex items-center gap-4 p-4 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-                style={{ backgroundColor: darkMode ? "#334155" : "#FFFFFF", border: darkMode ? "1px solid #475569" : "1px solid #E2E8F0", boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-              >
-                <svg className="w-6 h-6" style={{ color: darkMode ? "#3B82F6" : "#00529B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span className="font-medium" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Documents</span>
-              </button>
-
-              <button
-                onClick={() => alert("Templates coming soon!")}
-                className="flex items-center gap-4 p-4 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-                style={{ backgroundColor: darkMode ? "#334155" : "#FFFFFF", border: darkMode ? "1px solid #475569" : "1px solid #E2E8F0", boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-              >
-                <svg className="w-6 h-6" style={{ color: darkMode ? "#3B82F6" : "#00529B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" />
-                </svg>
-                <span className="font-medium" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>View Templates</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Recent Entries & Announcements & Deadlines */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Recent Entries */}
-            <div 
-              className="p-6 rounded-2xl lg:col-span-2"
-              style={{ backgroundColor: darkMode ? "#334155" : "#FFFFFF", boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', border: darkMode ? "1px solid #475569" : "1px solid #E2E8F0" }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Recent Entries</h3>
-                <button 
-                  onClick={() => router.push("/journal")}
-                  className="text-sm font-medium"
-                  style={{ color: darkMode ? "#3B82F6" : "#00529B" }}
-                >
-                  View All
-                </button>
+            <Link href="/documents" className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  {renderIcon("clock", "w-5 h-5")}
+                </div>
+                <span className="text-3xl font-bold text-slate-900 dark:text-white leading-none">{pending}</span>
               </div>
-              <div className="space-y-3">
-                {recentEntries.map((entry) => (
-                  <div 
-                    key={entry.id}
-                    className="flex items-center justify-between p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity"
-                    style={{ backgroundColor: darkMode ? "#1E293B" : "#F8FAFC" }}
-                    onClick={() => router.push("/journal")}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        entry.type === 'journal' ? (darkMode ? 'bg-blue-900/20' : 'bg-blue-100') : 
-                        entry.type === 'dtr' ? (darkMode ? 'bg-green-900/20' : 'bg-green-100') : (darkMode ? 'bg-purple-900/20' : 'bg-purple-100')
-                      }`}>
-                        {entry.type === 'journal' && (
-                          <svg className="w-5 h-5" style={{ color: darkMode ? "#3B82F6" : "#00529B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        )}
-                        {entry.type === 'dtr' && (
-                          <svg className="w-5 h-5" style={{ color: darkMode ? "#22C55E" : "#16A34A" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        )}
-                        {entry.type === 'moa' && (
-                          <svg className="w-5 h-5" style={{ color: darkMode ? "#A855F7" : "#9333EA" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-sm" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>{entry.title}</p>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            entry.status === 'approved' ? (darkMode ? 'bg-green-900/20 text-green-400' : 'bg-green-100 text-green-700') :
-                            entry.status === 'pending' ? (darkMode ? 'bg-yellow-900/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700') :
-                            (darkMode ? 'bg-orange-900/20 text-orange-400' : 'bg-orange-100 text-orange-700')
-                          }`}>
-                            {entry.status}
-                          </span>
-                        </div>
-                        <p className="text-xs" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>{entry.date}</p>
-                      </div>
+              <span className="text-xs font-medium text-slate-500 text-center">Pending Reviews</span>
+            </Link>
+
+            <Link href="/documents" className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  {renderIcon("cross", "w-5 h-5")}
+                </div>
+                <span className="text-3xl font-bold text-slate-900 dark:text-white leading-none">{rejected}</span>
+              </div>
+              <span className="text-xs font-medium text-slate-500 text-center">Rejected Items</span>
+            </Link>
+          </section>
+
+          {/* Timeline */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Activity Timeline</h3>
+              <Link href="/documents" className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">View All</Link>
+            </div>
+            <div className="relative pl-4">
+              <div className="absolute left-6 top-2 bottom-2 w-0.5 bg-slate-100 dark:bg-slate-800" />
+              <div className="space-y-6 relative">
+                {activityFeed.map(item => (
+                  <div key={item.id} className="flex gap-4">
+                    <div className={`w-5 h-5 mt-0.5 rounded-full flex-shrink-0 flex items-center justify-center border-2 border-white dark:border-slate-900 z-10 ${
+                      item.color === 'green' ? 'bg-green-500' :
+                      item.color === 'red' ? 'bg-red-500' :
+                      item.color === 'amber' ? 'bg-amber-500' : 'bg-blue-500'
+                    }`}>
+                      {renderIcon(item.icon, "w-3 h-3 text-white")}
                     </div>
-                    <span className="text-sm font-medium" style={{ color: darkMode ? "#3B82F6" : "#00529B" }}>
-                      {entry.hours}
-                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.message}</p>
+                      <p className="text-xs text-slate-500 mt-1">{item.time}</p>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-
-            {/* Announcements & Deadlines */}
-            <div className="space-y-3">
-              {/* Announcements */}
-              <div 
-                className="p-3 rounded-xl"
-                style={{ backgroundColor: darkMode ? "#334155" : "#FFFFFF", border: darkMode ? "1px solid #475569" : "1px solid #E2E8F0" }}
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <svg className="w-4 h-4" style={{ color: "#00529B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.843A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.664-.821z" />
-                  </svg>
-                  <h3 className="text-base font-bold" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Announcements</h3>
-                </div>
-                <div className="space-y-2">
-                  {announcements.map((announcement) => (
-                    <div key={announcement.id} className="p-2 rounded-lg" style={{ backgroundColor: darkMode ? "#1E293B" : "#EFF6FF" }}>
-                      <p className="text-sm font-medium" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>{announcement.title}</p>
-                      <p className="text-xs" style={{ color: darkMode ? "#94A3B8" : "#64748B" }}>{announcement.message}</p>
-                      <p className="text-xs mt-1" style={{ color: darkMode ? "#64748B" : "#94A3B8" }}>{announcement.time}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Deadlines */}
-              <div 
-                className="p-3 rounded-xl"
-                style={{ backgroundColor: darkMode ? "#334155" : "#FFFFFF", border: darkMode ? "1px solid #475569" : "1px solid #E2E8F0" }}
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <svg className="w-4 h-4" style={{ color: "#D97706" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <h3 className="text-base font-bold" style={{ color: darkMode ? "#F8FAFC" : "#1E293B" }}>Deadlines</h3>
-                </div>
-                <div className="space-y-2">
-                  {deadlines.map((deadline) => (
-                    <div key={deadline.id} className="flex items-center justify-between p-2 rounded-lg" style={{ backgroundColor: darkMode ? "#1E293B" : "#FEF3C7" }}>
-                      <div className="flex items-center gap-2">
-                        {deadline.type === 'journal' && (
-                          <svg className="w-4 h-4" style={{ color: darkMode ? "#3B82F6" : "#00529B" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        )}
-                        {deadline.type === 'dtr' && (
-                          <svg className="w-4 h-4" style={{ color: darkMode ? "#22C55E" : "#16A34A" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        )}
-                        {deadline.type === 'moa' && (
-                          <svg className="w-4 h-4" style={{ color: darkMode ? "#A855F7" : "#9333EA" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        )}
-                        <p className="text-sm font-medium" style={{ color: darkMode ? "#F59E0B" : "#D97706" }}>{deadline.title}</p>
-                      </div>
-                      <span className="text-xs font-medium" style={{ color: darkMode ? "#F59E0B" : "#D97706" }}>{deadline.date}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* Footer */}
-          <footer className="mt-12 text-center">
-            <p className="text-sm" style={{ color: darkMode ? "#64748B" : "#94A3B8" }}>
-              Practicum System &copy; {new Date().getFullYear()} | STI Marikina
-            </p>
-          </footer>
+          {/* Quick Actions & Checklist */}
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-4">Quick Actions</h3>
+              <div className="flex flex-col gap-3">
+                <button onClick={() => router.push("/journal")} className="w-full flex items-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/50 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-sm transition-all text-left group">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mr-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    {renderIcon("journal")}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Submit Journal</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Record daily activities</div>
+                  </div>
+                  <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 group-hover:text-blue-500 transition-all -translate-x-2 group-hover:translate-x-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                <button onClick={() => router.push("/dtr")} className="w-full flex items-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/50 hover:border-green-300 dark:hover:border-green-500 hover:shadow-sm transition-all text-left group">
+                  <div className="w-10 h-10 rounded-lg bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center mr-4 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                    {renderIcon("clock")}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">Upload DTR</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Submit time record</div>
+                  </div>
+                  <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 group-hover:text-green-500 transition-all -translate-x-2 group-hover:translate-x-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                <button onClick={() => router.push("/moa")} className="w-full flex items-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/50 hover:border-purple-300 dark:hover:border-purple-500 hover:shadow-sm transition-all text-left group">
+                  <div className="w-10 h-10 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center mr-4 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                    {renderIcon("doc")}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Upload MOA</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Submit agreement</div>
+                  </div>
+                  <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 group-hover:text-purple-500 transition-all -translate-x-2 group-hover:translate-x-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                <button onClick={() => router.push("/evaluation")} className="w-full flex items-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/50 hover:border-orange-300 dark:hover:border-orange-500 hover:shadow-sm transition-all text-left group">
+                  <div className="w-10 h-10 rounded-lg bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center mr-4 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                    {renderIcon("chart")}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">Submit Eval</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Final evaluation</div>
+                  </div>
+                  <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 group-hover:text-orange-500 transition-all -translate-x-2 group-hover:translate-x-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-4">Requirements Checklist</h3>
+              <div className="space-y-3">
+                {REQUIRED_TYPES.map((type) => {
+                  const done = submittedTypes.includes(type);
+                  return (
+                    <button key={type} onClick={() => router.push(`/${type}`)} className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-left ${done ? 'bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-900/30 hover:bg-green-100' : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700 hover:border-blue-300'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-5 h-5 rounded flex items-center justify-center border ${done ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 dark:border-slate-600'}`}>
+                          {done && <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                        </div>
+                        <span className={`text-sm font-semibold ${done ? 'text-green-800 dark:text-green-400' : 'text-slate-700 dark:text-slate-300'}`}>{REQUIREMENT_LABELS[type]}</span>
+                      </div>
+                      {!done && <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md">Submit now</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
         </div>
-      </main>
-    </div>
+
+        {/* ═══ RIGHT SIDEBAR COLUMN ═══ */}
+        <div className="w-full lg:w-72 xl:w-80 flex-shrink-0 space-y-6 md:space-y-8 lg:sticky lg:top-0">
+          
+          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">Action Required</h3>
+              {alerts.length > 0 && <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-full">{alerts.length} pending</span>}
+            </div>
+            <div className="flex-1 space-y-3">
+              {alerts.length === 0 ? (
+                <div className="py-6 flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-green-50 dark:bg-green-900/20 rounded-full flex items-center justify-center text-green-500 mb-3"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></div>
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">You're all caught up!</p>
+                </div>
+              ) : (
+                alerts.map((alert, i) => (
+                  <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${alert.severity === 'error' ? 'bg-red-50 border-red-200 text-red-800' : alert.severity === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+                    <span className="text-base mt-0.5">{alert.icon}</span>
+                    <span className="text-sm font-medium leading-tight">{alert.message}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">AI Assistant</h3>
+                <p className="text-xs text-slate-500">Need help?</p>
+              </div>
+            </div>
+            <div className="flex-1 space-y-3">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
+                <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1 flex items-center gap-1">Suggestion</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {missingTypes.length > 0 ? `Missing ${REQUIREMENT_LABELS[missingTypes[0]]}. Getting this submitted should be your next priority.` : "Great job! All core requirements are submitted."}
+                </p>
+              </div>
+            </div>
+            <button onClick={() => router.push("/journal")} className="mt-6 w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+              Create Journal Entry
+            </button>
+          </div>
+        </div>
+        
+      </div>
+    </StudentLayout>
   );
 }

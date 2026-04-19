@@ -25,7 +25,6 @@ export default function Sidebar({ session }: SidebarProps) {
     { label: "Evaluation", href: "/evaluation", icon: "chart", roles: ["student"] },
     { label: "Templates", href: "/templates", icon: "doc", roles: ["student"] },
     { label: "Documents", href: "/documents", icon: "folder", roles: ["student"] },
-    { label: "Messages", href: "/messages", icon: "msg", roles: ["student", "advisor", "admin"] },
     { label: "Submissions", href: "/advisor", icon: "chart", roles: ["advisor"] },
     { label: "Users", href: "/admin", icon: "users", roles: ["admin"] },
   ];

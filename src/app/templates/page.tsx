@@ -1,96 +1,70 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getSession, User } from "@/lib/auth";
-import Sidebar from "@/components/Sidebar";
-import Topbar from "@/components/Topbar";
-
-interface Template {
-  id: string;
-  name: string;
-  description: string;
-  category: "Journal" | "Document" | "Evaluation" | "Letter";
-  format: "PDF" | "DOCX";
-  size: string;
-}
-
-const sampleTemplates: Template[] = [
-  { id: "1", name: "Daily Journal Template", description: "Standard format for daily activities and learning logs.", category: "Journal", format: "DOCX", size: "45 KB" },
-  { id: "2", name: "Weekly Progress Report", description: "Consolidated weekly report format for performance monitoring.", category: "Document", format: "PDF", size: "120 KB" },
-  { id: "3", name: "Self-Evaluation Form", description: "Mid-term and final self-evaluation questionnaire.", category: "Evaluation", format: "PDF", size: "85 KB" },
-  { id: "4", name: "Endorsement Letter Draft", description: "Official endorsement letter template for partner companies.", category: "Letter", format: "DOCX", size: "32 KB" },
-];
+import StudentLayout from "@/components/StudentLayout";
+import { getSession } from "@/lib/auth";
 
 export default function TemplatesPage() {
   const router = useRouter();
-  const [session, setSession] = useState<User | null>(null);
 
   useEffect(() => {
-    const currentSession = getSession();
-    if (!currentSession) {
-      router.push("/login");
-      return;
-    }
-    setSession(currentSession);
-  }, []);
+    const s = getSession();
+    if (!s || s.role !== "student") router.push("/login");
+  }, [router]);
 
-  if (!session) return null;
+  const templates = [
+    { id: 1, title: "Daily Time Record (DTR) Template", type: "PDF", size: "245 KB", icon: "clock" },
+    { id: 2, title: "Memorandum of Agreement (MOA)", type: "DOCX", size: "1.2 MB", icon: "doc" },
+    { id: 3, title: "Final Evaluation Form", type: "PDF", size: "450 KB", icon: "chart" },
+    { id: 4, title: "Journal Cover Page", type: "DOCX", size: "105 KB", icon: "journal" },
+  ];
 
   return (
-    <div className="min-h-screen flex bg-background">
-      <Sidebar session={session} />
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <Topbar session={session} title="Requirement Templates" />
+    <StudentLayout activeNav="templates">
+      <div className="max-w-[1600px] mx-auto space-y-6 md:space-y-8">
         
-        <div className="flex-1 overflow-y-auto p-8 animate-in">
-          <div className="max-w-6xl mx-auto space-y-10">
-            <div>
-              <h2 className="text-3xl font-black text-foreground tracking-tight">System Templates</h2>
-              <p className="text-sm font-medium text-muted-foreground mt-2 max-w-2xl leading-relaxed">
-                Download the official templates required for your practicum. Ensure you use the latest versions for all your submissions.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {sampleTemplates.map((t) => (
-                <div key={t.id} className="glass p-8 rounded-[2.5rem] border-border/50 shadow-xl shadow-primary/5 group hover:border-primary/30 transition-all flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-6">
-                      <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                        t.category === 'Journal' ? 'bg-primary/10 text-primary' : 
-                        t.category === 'Evaluation' ? 'bg-violet-500/10 text-violet-600' :
-                        t.category === 'Letter' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'
-                      }`}>
-                        {t.category}
-                      </div>
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.format} • {t.size}</span>
-                    </div>
-                    <h3 className="text-xl font-bold text-foreground mb-3 group-hover:text-primary transition-colors">{t.name}</h3>
-                    <p className="text-sm font-medium text-muted-foreground leading-relaxed mb-8">{t.description}</p>
-                  </div>
-                  
-                  <button className="w-full py-4 rounded-2xl bg-secondary text-foreground font-black text-xs uppercase tracking-widest hover:bg-primary hover:text-white shadow-sm hover:shadow-xl hover:shadow-primary/20 transition-all flex items-center justify-center gap-3">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    Download Template
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-10 rounded-[3rem] bg-primary/5 border border-primary/10 flex flex-col items-center text-center space-y-6">
-              <div className="w-16 h-16 rounded-3xl bg-primary text-white flex items-center justify-center shadow-xl shadow-primary/20">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </div>
-              <div>
-                <h4 className="text-lg font-black text-foreground">Need a different format?</h4>
-                <p className="text-sm font-medium text-muted-foreground mt-1">If you require a template that is not listed here, please contact your advisor or the administration office.</p>
-              </div>
-              <button onClick={() => router.push("/messages")} className="text-xs font-black text-primary uppercase tracking-[0.2em] hover:underline">Contact Advisor</button>
-            </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">Document Templates</h2>
+            <p className="text-sm text-slate-500">Download the required forms and templates for your practicum.</p>
+          </div>
+          <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-900/50">
+            <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">{templates.length} Templates Available</span>
           </div>
         </div>
-      </main>
-    </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {templates.map(template => (
+            <div key={template.id} className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group">
+              <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-blue-100 group-hover:text-blue-600 transition-all">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {template.icon === 'doc' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />}
+                  {template.icon === 'clock' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />}
+                  {template.icon === 'chart' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />}
+                  {template.icon === 'journal' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />}
+                </svg>
+              </div>
+              <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-1 leading-tight">{template.title}</h3>
+              <div className="flex items-center gap-2 text-xs font-medium text-slate-500 uppercase tracking-wider mb-6">
+                <span>{template.type}</span>
+                <span>•</span>
+                <span>{template.size}</span>
+              </div>
+              <button 
+                onClick={() => alert(`Downloading ${template.title}...`)}
+                className="w-full py-2.5 rounded-lg text-sm font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download
+              </button>
+            </div>
+          ))}
+        </div>
+
+      </div>
+    </StudentLayout>
   );
 }
