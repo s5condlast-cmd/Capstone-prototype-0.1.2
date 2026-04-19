@@ -4,7 +4,6 @@ import "./globals.css";
 import { ThemeProvider } from "@/lib/ThemeContext";
 import ThemeWrapper from "@/lib/ThemeWrapper";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/config";
-import { cn } from "@/lib/utils";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -24,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
+    <html lang="en" suppressHydrationWarning className={`font-sans ${geist.variable}`}>
       <body className={`${inter.variable} font-sans antialiased bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white`}>
         <ThemeProvider>
           <ThemeWrapper>
