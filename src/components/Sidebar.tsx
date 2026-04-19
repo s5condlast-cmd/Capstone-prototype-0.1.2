@@ -1,107 +1,87 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { logout, User } from "@/lib/auth";
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { 
+  Home, 
+  Users, 
+  UserPlus, 
+  GraduationCap, 
+  FileStack, 
+  BarChart3, 
+  Monitor, 
+  ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
+  Command
+} from "lucide-react"
 
 interface SidebarProps {
-  session: User | null;
+  className?: string
 }
 
-export default function Sidebar({ session }: SidebarProps) {
-  const pathname = usePathname();
-  const router = useRouter();
+export function Sidebar({ className }: SidebarProps) {
+  const pathname = usePathname()
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-  };
-
-  const navItems = [
-    { label: "Dashboard", href: "/dashboard", icon: "home", roles: ["student"] },
-    { label: "Journal", href: "/journal", icon: "journal", roles: ["student"] },
-    { label: "DTR", href: "/dtr", icon: "clock", roles: ["student"] },
-    { label: "MOA", href: "/moa", icon: "doc", roles: ["student"] },
-    { label: "Evaluation", href: "/evaluation", icon: "chart", roles: ["student"] },
-    { label: "Templates", href: "/templates", icon: "doc", roles: ["student"] },
-    { label: "Documents", href: "/documents", icon: "folder", roles: ["student"] },
-    { label: "Submissions", href: "/advisor", icon: "chart", roles: ["advisor"] },
-    { label: "Users", href: "/admin", icon: "users", roles: ["admin"] },
-  ];
-
-  const filteredItems = navItems.filter(item => 
-    session && item.roles.includes(session.role)
-  );
-
-  const getIcon = (name: string) => {
-    switch (name) {
-      case "home": return <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />;
-      case "journal": return <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />;
-      case "clock": return <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />;
-      case "doc": return <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />;
-      case "chart": return <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />;
-      case "folder": return <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />;
-      case "msg": return <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />;
-      case "users": return <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a4 4 0 11-8 0 4 4 0 018 0zM17 20a4 4 0 10-8 0 4 4 0 008 0z" />;
-      default: return null;
-    }
-  };
+  const routes = [
+    { label: "Dashboard", icon: Home, href: "/admin/dashboard", color: "text-sky-500" },
+    { label: "Users", icon: Users, href: "/admin/users", color: "text-violet-500" },
+    { label: "Assignments", icon: UserPlus, href: "/admin/adviser-assignment", color: "text-pink-700" },
+    { label: "Batches", icon: GraduationCap, href: "/admin/batches", color: "text-orange-700" },
+    { label: "Templates", icon: FileStack, href: "/admin/templates", color: "text-emerald-500" },
+    { label: "Analytics", icon: BarChart3, href: "/admin/reports", color: "text-blue-600" },
+    { label: "Monitoring", icon: Monitor, href: "/admin/monitoring", color: "text-amber-600" },
+    { label: "Access Control", icon: ShieldCheck, href: "/admin/access-control", color: "text-red-600" },
+  ]
 
   return (
-    <aside className="w-64 flex-shrink-0 flex flex-col bg-card border-r border-border transition-all duration-300">
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-primary to-primary-700 shadow-lg shadow-primary/20">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          </div>
-          <div>
-            <h1 className="font-black text-sm text-foreground tracking-tight">PRACTICUM</h1>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Management</p>
-          </div>
+    <div className={cn(
+      "relative flex flex-col h-full border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 transition-all duration-300",
+      isCollapsed ? "w-20" : "w-64",
+      className
+    )}>
+      {/* Collapse Toggle */}
+      <Button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        variant="secondary"
+        className="absolute -right-3 top-10 h-6 w-6 rounded-full p-0 shadow-md border border-slate-200 dark:border-slate-800"
+      >
+        {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+      </Button>
+
+      <div className="p-6 flex items-center gap-3 overflow-hidden whitespace-nowrap">
+        <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
+          <Command className="h-5 w-5 text-white" />
         </div>
+        {!isCollapsed && (
+          <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">PRACTICUM</h1>
+        )}
       </div>
 
-      <nav className="flex-1 p-4 space-y-8 mt-4">
-        <div>
-          <p className="px-4 mb-2 text-[10px] font-bold text-muted-foreground/50 uppercase tracking-[0.2em]">Menu</p>
-          <ul className="space-y-1">
-            {filteredItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 group ${
-                      isActive 
-                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" 
-                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    }`}
-                  >
-                    <svg className={`w-5 h-5 transition-colors ${isActive ? "text-white" : "group-hover:text-primary"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      {getIcon(item.icon)}
-                    </svg>
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+      <ScrollArea className="flex-1 px-3">
+        <div className="space-y-1 py-2">
+          {routes.map((route) => (
+            <Link
+              key={route.href}
+              href={route.href}
+              className={cn(
+                "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-slate-900 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-slate-800/50 rounded-lg transition-all",
+                pathname === route.href ? "text-slate-900 bg-slate-100 dark:text-white dark:bg-slate-800" : "text-slate-500 dark:text-slate-400",
+              )}
+            >
+              <div className="flex items-center flex-1">
+                <route.icon className={cn("h-5 w-5 mr-3 shrink-0", route.color)} />
+                {!isCollapsed && <span>{route.label}</span>}
+              </div>
+            </Link>
+          ))}
         </div>
-      </nav>
-
-      <div className="p-4 border-t border-border">
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-destructive hover:bg-destructive/10 transition-all duration-200"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Sign Out
-        </button>
-      </div>
-    </aside>
-  );
+      </ScrollArea>
+    </div>
+  )
 }

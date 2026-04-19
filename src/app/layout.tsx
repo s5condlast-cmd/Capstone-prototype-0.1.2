@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/lib/ThemeContext";
 import ThemeWrapper from "@/lib/ThemeWrapper";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -29,6 +30,7 @@ export default function RootLayout({
         <ThemeProvider>
           <ThemeWrapper>
             {children}
+            <Toaster position="top-center" richColors />
           </ThemeWrapper>
         </ThemeProvider>
       </body>
