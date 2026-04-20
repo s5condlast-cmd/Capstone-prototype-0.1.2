@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getSession, getUsers } from "@/lib/auth";
 import AdvisorLayout from "@/components/AdvisorLayout";
 import Link from "next/link";
+import { Search, Users, TriangleAlert, CheckCircle2, ArrowRight } from "lucide-react";
 
 interface Submission {
   id: string;
@@ -24,116 +25,155 @@ export default function AdvisorStudents() {
   useEffect(() => {
     const s = getSession();
     if (!s || s.role !== "advisor") return;
-    
+
     const allUsers = getUsers();
-    const studentUsers = allUsers.filter(u => u.role === "student");
-    
+    const studentUsers = allUsers.filter((u) => u.role === "student");
     const subs: Submission[] = JSON.parse(localStorage.getItem("practicum_submissions") || "[]");
     setSubmissions(subs);
 
-    const studentStats = studentUsers.map(student => {
-      const studentSubs = subs.filter(s => s.studentId === student.studentId);
-      const approved = studentSubs.filter(s => s.status === 'approved').length;
-      const pending = studentSubs.filter(s => s.status === 'pending').length;
-      // Define at risk as less than 2 approved documents after initial phase
+    const studentStats = studentUsers.map((student) => {
+      const studentSubs = subs.filter((item) => item.studentId === student.studentId);
+      const approved = studentSubs.filter((item) => item.status === "approved").length;
+      const pending = studentSubs.filter((item) => item.status === "pending").length;
+      const revision = studentSubs.filter((item) => item.status === "revision").length;
       const isAtRisk = approved < 2;
-      return { ...student, approved, pending, isAtRisk };
+      return { ...student, approved, pending, revision, isAtRisk };
     });
 
     setStudents(studentStats);
   }, []);
 
-  const filtered = students.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.studentId.includes(search);
-    const matchesFilter = filter === 'all' || (filter === 'at-risk' && s.isAtRisk) || (filter === 'completed' && s.approved >= 4);
-    return matchesSearch && matchesFilter;
-  });
+  const filtered = useMemo(() => {
+    return students.filter((student) => {
+      const matchesSearch = student.name.toLowerCase().includes(search.toLowerCase()) || student.studentId.toLowerCase().includes(search.toLowerCase());
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "at-risk" && student.isAtRisk) ||
+        (filter === "completed" && student.approved >= 4);
+      return matchesSearch && matchesFilter;
+    });
+  }, [students, search, filter]);
+
+  const stats = {
+    total: students.length,
+    atRisk: students.filter((student) => student.isAtRisk).length,
+    completed: students.filter((student) => student.approved >= 4).length,
+  };
 
   return (
     <AdvisorLayout activeNav="students">
-      <div className="max-w-[1600px] mx-auto space-y-6">
-        
-        {/* Controls */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex-1 relative max-w-md">
-            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input 
-              type="text" 
-              placeholder="Search by name or student ID..." 
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            {['all', 'at-risk', 'completed'].map(f => (
-              <button 
-                key={f} 
-                onClick={() => setFilter(f)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${filter === f ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Student Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filtered.length === 0 ? (
-            <div className="col-span-full py-20 text-center text-slate-500 italic">No students found matching your criteria.</div>
-          ) : filtered.map(student => (
-            <Link 
-              key={student.studentId} 
-              href={`/advisor/students/${student.studentId}`}
-              className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden"
-            >
-              {student.isAtRisk && <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/10 -mr-8 -mt-8 rounded-full" />}
-              
-              <div className="flex items-center gap-4 mb-6">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold ${student.isAtRisk ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
-                  {student.name.charAt(0)}
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
+        <section className="grid gap-4 md:grid-cols-3">
+          {[
+            { label: "Assigned students", value: stats.total, icon: Users },
+            { label: "At risk", value: stats.atRisk, icon: TriangleAlert },
+            { label: "Completed core docs", value: stats.completed, icon: CheckCircle2 },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  <stat.icon className="h-5 w-5" />
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 transition-colors">{student.name}</h4>
-                  <p className="text-xs text-slate-500">{student.studentId}</p>
+                <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 dark:border-slate-700 dark:bg-slate-800/70">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Overview</span>
                 </div>
               </div>
+              <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{stat.value}</div>
+              <p className="mt-1 text-sm text-slate-500">{stat.label}</p>
+            </div>
+          ))}
+        </section>
 
-              <div className="space-y-4">
-                <div className="flex justify-between items-end">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Progress</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{Math.round((student.approved / 4) * 100)}%</span>
-                      <span className="text-[10px] text-slate-500">({student.approved}/4 Approved)</span>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative max-w-md flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by name or student ID..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800/70"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {["all", "at-risk", "completed"].map((item) => (
+                <button
+                  key={item}
+                  onClick={() => setFilter(item)}
+                  className={`rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                    filter === item
+                      ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
+                      : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.length === 0 ? (
+            <div className="col-span-full rounded-2xl border border-dashed border-slate-300 px-6 py-16 text-center text-sm text-slate-500 dark:border-slate-700">
+              No students matched your search and filter settings.
+            </div>
+          ) : (
+            filtered.map((student) => {
+              const progress = Math.min(100, Math.round((student.approved / 4) * 100));
+              return (
+                <Link
+                  key={student.studentId}
+                  href={`/advisor/students/${student.studentId}`}
+                  className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+                >
+                  <div className="mb-6 flex items-center gap-4">
+                    <div className={`flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-bold ${student.isAtRisk ? "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400" : "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"}`}>
+                      {student.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-base font-semibold text-slate-900 transition group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400">{student.name}</h3>
+                      <p className="text-sm text-slate-500">{student.studentId}</p>
                     </div>
                   </div>
-                  {student.pending > 0 && (
-                    <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded-md text-[10px] font-bold">
-                      {student.pending} PENDING
-                    </span>
-                  )}
-                </div>
-                
-                <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full transition-all ${student.isAtRisk ? 'bg-red-500' : 'bg-blue-600'}`} 
-                    style={{ width: `${Math.min(100, (student.approved / 4) * 100)}%` }} 
-                  />
-                </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Company: Tech Corp</span>
-                  <div className="flex -space-x-2">
-                    {[1,2,3].map(i => <div key={i} className="w-5 h-5 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200" />)}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-500">Core progress</span>
+                      <span className="font-semibold text-slate-900 dark:text-white">{progress}%</span>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div className={`h-full rounded-full ${student.isAtRisk ? "bg-red-500" : "bg-blue-600"}`} style={{ width: `${progress}%` }} />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 pt-2">
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Approved</p>
+                        <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{student.approved}</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Pending</p>
+                        <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{student.pending}</p>
+                      </div>
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Revision</p>
+                        <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{student.revision}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
+                      <span className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${student.isAtRisk ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"}`}>
+                        {student.isAtRisk ? "Needs attention" : "On track"}
+                      </span>
+                      <ArrowRight className="h-4 w-4 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-blue-600" />
+                    </div>
                   </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-
+                </Link>
+              );
+            })
+          )}
+        </section>
       </div>
     </AdvisorLayout>
   );

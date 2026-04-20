@@ -1,110 +1,221 @@
-"use client";
+"use client"
 
-import { useState, useEffect, ReactNode } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { getSession, logout, User } from "@/lib/auth";
-import { useTheme } from "@/lib/ThemeContext";
-import Link from "next/link";
+import { useState, useEffect, ReactNode } from "react"
+import { useRouter, usePathname } from "next/navigation"
+import { getSession, logout, User } from "@/lib/auth"
+import { useTheme } from "@/lib/ThemeContext"
+import Link from "next/link"
+import { 
+  LayoutDashboard,
+  Users,
+  FileText,
+  CheckSquare,
+  BarChart3,
+  Bell,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  Moon,
+  Sun,
+  User as UserIcon,
+  Menu,
+  Settings,
+  Search,
+} from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 const navItems = [
-  { label: "Dashboard", href: "/advisor/dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
-  { label: "Students", href: "/advisor/students", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
-  { label: "Documents", href: "/advisor/documents", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
-  { label: "Approvals", href: "/advisor/approvals", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
-  { label: "Reports", href: "/advisor/reports", icon: "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
-  { label: "Requirements", href: "/advisor/requirements", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" },
-];
+  { label: "Search(working)", href: "/advisor/dashboard", icon: LayoutDashboard },
+  { label: "Students", href: "/advisor/students", icon: Users },
+  { label: "Documents", href: "/advisor/documents", icon: FileText },
+  { label: "Approvals", href: "/advisor/approvals", icon: CheckSquare },
+  { label: "Reports", href: "/advisor/reports", icon: BarChart3 },
+]
 
 export default function AdvisorLayout({ children, activeNav }: { children: ReactNode; activeNav: string }) {
-  const router = useRouter();
-  const { darkMode, setDarkMode } = useTheme();
-  const [session, setSession] = useState<User | null>(null);
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const router = useRouter()
+  const pathname = usePathname()
+  const { darkMode, setDarkMode } = useTheme()
+  const [session, setSession] = useState<User | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
-    const s = getSession();
-    if (!s || s.role !== "advisor") { router.push("/login"); return; }
-    setSession(s);
-  }, [router]);
+    setMounted(true)
+    const s = getSession()
+    if (!s || s.role !== "advisor") {
+      router.push("/login")
+      return
+    }
+    setSession(s)
+  }, [router])
 
-  if (!session) return null;
+  useEffect(() => {
+    if (pathname === "/advisor/approvals") {
+      setCollapsed(true)
+    }
+  }, [pathname])
+
+  if (!mounted || !session) return null
+
+  const handleLogout = () => {
+    logout()
+    toast.success("Signed out successfully")
+    router.push("/login")
+  }
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 overflow-hidden">
-      
-      {/* SIDEBAR */}
-      <aside className="w-64 flex-shrink-0 hidden md:flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
-        <div className="h-16 flex items-center px-6 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-md">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-            </div>
-            <div>
-              <h1 className="font-bold text-sm tracking-tight leading-none text-slate-900 dark:text-white">PRACTICUM</h1>
-              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Advisor Panel</span>
-            </div>
+    <div className="flex h-screen w-full overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+      {mobileOpen && <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setMobileOpen(false)} />}
+      <aside className={cn("fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-300 shrink-0 md:static md:z-auto", collapsed ? "w-[72px]" : "w-[260px]", mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0")}>
+        <div className={cn("h-16 flex items-center border-b border-[hsl(var(--border))] px-5 shrink-0", collapsed && "justify-center px-0")}>
+          <div className="h-8 w-8 rounded-lg bg-[hsl(var(--foreground))] flex items-center justify-center shrink-0">
+            <span className="text-[hsl(var(--background))] font-black text-[11px]">AIP</span>
           </div>
+          {!collapsed && (
+            <div className="ml-3">
+              <div className="text-[13px] font-bold tracking-tight">Advisor Portal</div>
+              <div className="text-[10px] font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Web-based AI System</div>
+            </div>
+          )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          <div className="px-3 mb-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Menu</div>
-          {navItems.map(item => (
-            <Link key={item.href} href={item.href} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeNav === item.href.split("/").pop() ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}>
-              <svg className={`w-5 h-5 ${activeNav === item.href.split("/").pop() ? "text-white" : "text-slate-400 dark:text-slate-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} /></svg>
-              {item.label}
-            </Link>
-          ))}
+        <nav className="flex-1 p-3 space-y-1">
+          {navItems.map((item) => {
+            const active = pathname === item.href
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => {
+                  setCollapsed(true)
+                  setMobileOpen(false)
+                }}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all",
+                  collapsed && "justify-center px-0",
+                  active
+                    ? "bg-[hsl(var(--foreground))] text-[hsl(var(--background))]"
+                    : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]"
+                )}
+                title={collapsed ? item.label : undefined}
+              >
+                <item.icon className="h-[18px] w-[18px] shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </Link>
+            )
+          })}
         </nav>
 
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-          <button onClick={() => { logout(); router.push("/login"); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-            Sign Out
+        <div className="border-t border-[hsl(var(--border))] p-3 space-y-1">
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className={cn("flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-[13px] font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors", collapsed && "justify-center px-0")}
+          >
+            {collapsed ? <ChevronRight className="h-[18px] w-[18px]" /> : <ChevronLeft className="h-[18px] w-[18px]" />}
+            {!collapsed && <span>Collapse</span>}
+          </button>
+          <button
+            onClick={handleLogout}
+            className={cn("flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-[13px] font-medium text-[hsl(var(--destructive))] hover:bg-red-500/10 transition-colors", collapsed && "justify-center px-0")}
+          >
+            <LogOut className="h-[18px] w-[18px]" />
+            {!collapsed && <span>Sign out</span>}
           </button>
         </div>
       </aside>
 
-      {/* MAIN */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 flex items-center justify-between px-6 lg:px-8 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-10">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white capitalize">{activeNav === "dashboard" ? "Advisor Dashboard" : activeNav}</h2>
-          <div className="flex items-center gap-4">
-            {/* Notification Button next to name */}
-            <Link href="/advisor/notifications" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors relative">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
-            </Link>
-
-            <div className="relative">
-              <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold text-sm">{session.name.charAt(0)}</div>
-                <div className="hidden sm:block text-left">
-                  <div className="text-sm font-semibold text-slate-900 dark:text-white leading-tight">{session.name}</div>
-                  <div className="text-xs text-slate-500 leading-tight">Advisor</div>
-                </div>
-              </button>
-              {showUserMenu && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-2 z-50">
-                  <Link href="/advisor/profile" onClick={() => setShowUserMenu(false)} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                    <span>Profile Settings</span>
-                  </Link>
-                  <button onClick={() => setDarkMode(!darkMode)} className="w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                    <span className="text-slate-700 dark:text-slate-200">Dark Mode</span>
-                    <div className={`w-8 h-4 rounded-full relative transition-colors ${darkMode ? "bg-blue-500" : "bg-slate-300"}`}><div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${darkMode ? "left-4" : "left-0.5"}`} /></div>
-                  </button>
-                  <div className="border-t border-slate-200 dark:border-slate-700 my-2" />
-                  <button onClick={() => { logout(); router.push("/login"); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">Logout</button>
-                </div>
-              )}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="h-16 flex items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-6 shrink-0">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={() => setMobileOpen(true)}>
+              <Menu className="h-4 w-4" />
+            </Button>
+            <div>
+              <h2 className="text-[13px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+                {navItems.find(item => item.href === pathname)?.label || activeNav}
+              </h2>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button className="relative h-9 w-9 rounded-lg flex items-center justify-center hover:bg-[hsl(var(--muted))] transition-colors">
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-sti-blue" />
+            </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-[hsl(var(--muted))] transition-colors outline-none">
+                <Avatar className="h-8 w-8 rounded-lg">
+                  <AvatarFallback className="bg-[hsl(var(--foreground))] text-[hsl(var(--background))] font-bold text-[11px] rounded-lg">
+                    {session.name?.charAt(0) || "A"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="hidden sm:flex flex-col items-start leading-tight">
+                  <span className="text-[13px] font-semibold">{session.name}</span>
+                  <span className="text-[10px] font-medium text-[hsl(var(--muted-foreground))] uppercase">Advisor</span>
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-52" align="end" sideOffset={8}>
+                {/* Header */}
+                <div className="px-3 py-2.5 border-b border-[hsl(var(--border))]">
+                  <p className="text-[13px] font-semibold leading-none">{session.name}</p>
+                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1 uppercase tracking-wider">Advisor</p>
+                </div>
+                <div className="py-1">
+                  <DropdownMenuItem
+                    className="flex items-center gap-2.5 px-3 py-2 cursor-pointer text-[13px] rounded-md"
+                    onClick={() => setDarkMode(!darkMode)}
+                  >
+                    {darkMode ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
+                    <span>Dark Mode</span>
+                    <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+                      {darkMode ? "On" : "Off"}
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="flex items-center gap-2.5 px-3 py-2 cursor-pointer text-[13px] rounded-md"
+                    onClick={() => router.push("/advisor/profile")}
+                  >
+                    <UserIcon className="h-4 w-4 shrink-0" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="flex items-center gap-2.5 px-3 py-2 cursor-pointer text-[13px] rounded-md"
+                    onClick={() => toast.info("Settings coming soon.")}
+                  >
+                    <Settings className="h-4 w-4 shrink-0" />
+                    <span>Settings</span>
+                  </DropdownMenuItem>
+                </div>
+                <div className="border-t border-[hsl(var(--border))] py-1">
+                  <DropdownMenuItem
+                    className="flex items-center gap-2.5 px-3 py-2 cursor-pointer text-[13px] rounded-md text-[hsl(var(--destructive))] focus:text-[hsl(var(--destructive))]"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4 shrink-0" />
+                    <span>Sign out</span>
+                  </DropdownMenuItem>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50 dark:bg-slate-950">
-          {children}
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-10">
+          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
         </main>
       </div>
     </div>
-  );
+  )
 }

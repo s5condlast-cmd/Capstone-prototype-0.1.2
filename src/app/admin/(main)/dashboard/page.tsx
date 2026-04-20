@@ -4,27 +4,28 @@ import { useState, useEffect } from "react"
 import { getSession, getUsers, User } from "@/lib/auth"
 import AdminLayout from "@/components/AdminLayout"
 import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Users,
   UserCheck,
   FileText,
-  AlertCircle,
-  ArrowUpRight,
-  Plus,
+  Clock,
   ArrowRight,
-  BookOpen,
-  BarChart3
+  TrendingUp,
+  ChevronRight,
+  Activity,
+  Plus,
+  Calendar
 } from "lucide-react"
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([])
   const [submissions, setSubmissions] = useState<any[]>([])
+  const [session, setSession] = useState<User | null>(null)
 
   useEffect(() => {
     const s = getSession()
+    setSession(s)
     if (!s || s.role !== "admin") return
     setUsers(getUsers())
     setSubmissions(JSON.parse(localStorage.getItem("practicum_submissions") || "[]"))
@@ -32,124 +33,182 @@ export default function AdminDashboard() {
 
   const students = users.filter(u => u.role === "student")
   const advisors = users.filter(u => u.role === "advisor")
-  
+  const pendingCount = submissions.filter(s => s.status === "pending").length
+  const approvedCount = submissions.filter(s => s.status === "approved").length
+  const completionRate = submissions.length > 0 ? Math.round((approvedCount / submissions.length) * 100) : 0
+
   const stats = [
-    { label: "Active Students", value: students.length, icon: Users, description: "Total enrolled in practicum", color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-900/20" },
-    { label: "Assigned Advisers", value: advisors.length, icon: UserCheck, description: "Faculties currently supervising", color: "text-indigo-600", bg: "bg-indigo-50 dark:bg-indigo-900/20" },
-    { label: "New Submissions", value: submissions.filter(s => s.status === "pending").length, icon: FileText, description: "Awaiting review and feedback", color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
-    { label: "Needs Revision", value: submissions.filter(s => s.status === "revision").length, icon: AlertCircle, description: "Returned to students for edits", color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-900/20" },
+    { label: "Total Students", value: students.length, icon: Users, change: "+12%", up: true },
+    { label: "Faculty Advisers", value: advisors.length, icon: UserCheck, change: "+2", up: true },
+    { label: "Pending Reviews", value: pendingCount, icon: Clock, change: "—", up: false },
+    { label: "Completion Rate", value: `${completionRate}%`, icon: TrendingUp, change: "+5%", up: true },
+  ]
+
+  const quickLinks = [
+    { label: "Manage Users", href: "/admin/users", desc: "Add or remove system accounts" },
+    { label: "Adviser Assignment", href: "/admin/adviser-assignment", desc: "Pair students and advisers" },
+    { label: "Batch Management", href: "/admin/batches", desc: "Configure academic cohorts" },
+    { label: "Template Editor", href: "/admin/templates", desc: "Edit document structures" },
+    { label: "Access Control", href: "/admin/access-control", desc: "Role permissions & policies" },
   ]
 
   return (
     <AdminLayout activeNav="dashboard">
       <div className="flex flex-col gap-8">
-        {/* Welcome Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Overview</h2>
-            <p className="text-slate-500 mt-1 text-lg">Welcome back. Here's what's happening in your system today.</p>
+          <p className="text-[13px] text-[hsl(var(--muted-foreground))]">Hello, Student User</p>
+            <h1 className="text-[28px] font-bold tracking-tight mt-1">Dashboard</h1>
           </div>
           <div className="flex items-center gap-3">
-            <Button className="rounded-full shadow-lg shadow-indigo-500/20">
-              <Plus className="mr-2 h-4 w-4" /> New Batch
-            </Button>
+            <Link href="/admin/batches" className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-[13px] font-semibold hover:opacity-90 transition-opacity">
+              <Plus className="h-4 w-4" /> New Batch
+            </Link>
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
-            <Card key={stat.label} className="overflow-hidden border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                  {stat.label}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>
-                  <stat.icon className="h-4 w-4" />
+            <div key={stat.label} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-9 w-9 rounded-lg bg-[hsl(var(--muted))] flex items-center justify-center">
+                  <stat.icon className="h-[18px] w-[18px] text-[hsl(var(--muted-foreground))]" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stat.value}</div>
-                <p className="text-xs text-slate-500 mt-2 flex items-center">
-                  <ArrowUpRight className="mr-1 h-3 w-3 text-emerald-500" />
-                  <span className="text-emerald-500 font-medium">+12%</span> from last term
-                </p>
-                <CardDescription className="mt-3 text-xs leading-relaxed">
-                  {stat.description}
-                </CardDescription>
-              </CardContent>
-            </Card>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[hsl(var(--muted))] border border-[hsl(var(--border))] text-[11px] font-semibold text-[hsl(var(--muted-foreground))]">
+                  {stat.change}
+                </span>
+              </div>
+              <div className="text-[28px] font-bold tracking-tight tabular-nums">{stat.value}</div>
+              <p className="text-[12px] font-medium text-[hsl(var(--muted-foreground))] mt-1">{stat.label}</p>
+            </div>
           ))}
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-7">
-          {/* Recent Submissions */}
-          <Card className="lg:col-span-4 border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest student submissions across all programs.</CardDescription>
+        {/* Main Content Grid */}
+        <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+          
+          {/* Activity Feed */}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                <h2 className="text-[15px] font-semibold">Recent Activity</h2>
               </div>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/admin/monitoring" className="text-indigo-600">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {submissions.length === 0 ? (
-                  <div className="p-10 text-center text-slate-500">No recent submissions found.</div>
-                ) : submissions.slice(0, 5).map((sub: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between p-6 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-600">
-                        {sub.studentName.charAt(0)}
+              <Link href="/admin/monitoring" className="text-clickable text-[12px] font-semibold">
+                View all
+              </Link>
+            </div>
+            
+            <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden">
+              {submissions.length === 0 ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-3 text-[hsl(var(--muted-foreground))]">
+                  <FileText className="h-10 w-10 opacity-30" />
+                  <p className="text-[13px] font-medium">No submissions yet</p>
+                  <p className="text-[12px] opacity-60">Activity will appear here when students submit work</p>
+                </div>
+              ) : (
+                <div>
+                  {submissions.slice(0, 6).map((sub, i) => (
+                    <div key={i} className="flex items-center justify-between px-5 py-4 border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--muted))]/50 transition-colors group">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="h-9 w-9 rounded-lg bg-[hsl(var(--muted))] flex items-center justify-center shrink-0 text-[12px] font-bold text-[hsl(var(--muted-foreground))]">
+                          {String(i + 1).padStart(2, '0')}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-clickable text-[13px] font-semibold truncate">{sub.title}</p>
+                          <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                            {sub.studentName} · <span className="uppercase">{sub.type}</span>
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold">{sub.title}</p>
-                        <p className="text-xs text-slate-500">{sub.studentName} • {sub.type?.toUpperCase()}</p>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <Badge variant="outline" className="text-[10px] font-semibold uppercase h-5 px-2">
+                          {sub.status}
+                        </Badge>
+                        <ChevronRight className="h-4 w-4 text-[hsl(var(--muted-foreground))] opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <Badge variant={sub.status === "approved" ? "default" : sub.status === "rejected" ? "destructive" : sub.status === "revision" ? "outline" : "secondary"} className="capitalize">
-                        {sub.status}
-                      </Badge>
-                      <span className="text-[10px] text-slate-400">2 hours ago</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Sidebar */}
+          <div className="flex flex-col gap-6">
+            {/* Quick Links */}
+            <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden">
+              <div className="px-5 py-4 border-b border-[hsl(var(--border))]">
+                <h2 className="text-[13px] font-semibold">Quick Access</h2>
+                <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">Jump to any section instantly.</p>
+              </div>
+              <div className="p-2">
+                {quickLinks.map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="flex items-center justify-between px-3 py-3 rounded-lg border border-transparent hover:border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] transition-all group"
+                  >
+                    <div className="min-w-0">
+                      <span className="text-[13px] font-semibold block">{item.label}</span>
+                      <span className="text-[11px] text-[hsl(var(--muted-foreground))]">{item.desc}</span>
                     </div>
+                    <ArrowRight className="h-4 w-4 text-[hsl(var(--muted-foreground))] shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+
+
+            {/* Calendar Preview */}
+            <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                <h3 className="text-[13px] font-semibold">Upcoming</h3>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { date: "Apr 21", title: "DTR Submission Deadline" },
+                  { date: "Apr 25", title: "Midterm Evaluation" },
+                  { date: "May 02", title: "Progress Report Due" },
+                ].map((event) => (
+                  <div key={event.title} className="flex items-start gap-3">
+                    <span className="text-[11px] font-bold text-[hsl(var(--muted-foreground))] w-12 shrink-0 pt-0.5">{event.date}</span>
+                    <span className="text-[12px] font-medium">{event.title}</span>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Program Distribution */}
-          <Card className="lg:col-span-3 border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
-            <CardHeader>
-              <CardTitle>Quick Access</CardTitle>
-              <CardDescription>Common administrative tasks.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              {[
-                { name: "User Directory", desc: "Manage accounts and permissions", icon: Users, href: "/admin/users", color: "bg-blue-50 text-blue-600" },
-                { name: "Academic Batches", desc: "Setup terms and programs", icon: BookOpen, href: "/admin/batches", color: "bg-orange-50 text-orange-600" },
-                { name: "Reports Export", desc: "Generate compliance PDF/CSV", icon: BarChart3, href: "/admin/reports", color: "bg-emerald-50 text-emerald-600" },
-              ].map((item) => (
-                <Link 
-                  key={item.name} 
-                  href={item.href}
-                  className="flex items-center p-4 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-900 hover:shadow-sm transition-all group"
-                >
-                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center mr-4 ${item.color} dark:bg-opacity-10`}>
-                    <item.icon className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold group-hover:text-indigo-600 transition-colors">{item.name}</p>
-                    <p className="text-xs text-slate-500">{item.desc}</p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-600 transition-colors" />
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
+            {/* Login & Logout Info */}
+            <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4">
+              <div>
+                <h3 className="text-[13px] font-semibold">Login & Logout</h3>
+                <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-1">
+                  Quick account access details for the current admin session.
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-[hsl(var(--muted))] px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-medium text-[hsl(var(--muted-foreground))]">Logged in as</span>
+                  <Badge variant="outline" className="text-[10px] font-semibold uppercase h-5 px-2">
+                    {session?.role || "admin"}
+                  </Badge>
+                </div>
+                <p className="text-[13px] font-semibold">{session?.name || "Administrator"}</p>
+                <p className="text-[11px] text-[hsl(var(--muted-foreground))] break-all">
+                  {session?.email || "admin@sti.edu.ph"}
+                </p>
+              </div>
+
+
+            </div>
+          </div>
         </div>
       </div>
     </AdminLayout>

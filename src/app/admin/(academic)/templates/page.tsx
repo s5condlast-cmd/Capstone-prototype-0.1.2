@@ -1,57 +1,203 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import AdminLayout from "@/components/AdminLayout";
+import { ChangeEvent, useRef, useState } from "react"
+import AdminLayout from "@/components/AdminLayout"
+import { 
+  FileEdit, 
+  Save, 
+  FileText,
+  ChevronRight,
+  Upload,
+  FileBarChart,
+  Briefcase,
+  Clock,
+  FolderOpen
+} from "lucide-react"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+
+type TemplateItem = {
+  id: string
+  label: string
+  category: string
+  desc: string
+  fileType: string
+  icon: typeof FileText
+  content: string
+}
 
 export default function AdminTemplates() {
-  const [editorContent, setEditorContent] = useState("");
-  const [expandedBoxes, setExpandedBoxes] = useState<Record<string, boolean>>({ dtr: false, moa: false, evaluation: false });
+  const [editorContent, setEditorContent] = useState("")
+  const [activeTemplate, setActiveTemplate] = useState<TemplateItem | null>(null)
+  const [templates, setTemplates] = useState<TemplateItem[]>([
+    { id: "dtr", label: "DTR Template", category: "Attendance", desc: "Daily Time Record logging structure", fileType: "PDF", icon: Clock, content: "DAILY TIME RECORD\n\nStudent: _______________\nDate: _______________\n\nTime In: ________ AM\nTime Out: ________ PM\nTotal Hours: ________\n\nSignature: _______________\n\nNotes:\n" },
+    { id: "moa", label: "MOA Template", category: "Legal", desc: "Memorandum of Agreement with partner companies", fileType: "DOCX", icon: Briefcase, content: "MEMORANDUM OF AGREEMENT\n\nThis Memorandum of Agreement is made and entered into between\n_______________  (Company) located at _______________\nand _______________  (Student) of _______________  (School)\nfor the purpose of _______________.\n\nThe Company agrees to provide training and supervision to the Student\nduring the practicum period of _______________.\n\nThe Company shall evaluate the Student's performance and submit an\nEvaluation Form to the school monthly.\n\nThe Student agrees to follow all company rules, complete the required\nhours, and submit daily logs throughout the practicum.\n\nThis agreement shall remain in effect for a period of _______________\nbeginning from _______________.\n\nSigned by:\n\n_______________          _______________\nCompany Representative    Student\n\nDate: _______________\n" },
+    { id: "evaluation", label: "Evaluation Form", category: "Performance", desc: "Student performance assessment template", fileType: "PDF", icon: FileBarChart, content: "STUDENT EVALUATION FORM\n\nStudent Name: _______________\nCompany: _______________\nEvaluation Period: _______________\n\nRating Scale: 1 (Poor) - 5 (Excellent)\n\nPerformance Areas:\n1. Technical Skills:    [ ]\n2. Communication:       [ ]\n3. Work Ethic:          [ ]\n4. Teamwork:            [ ]\n5. Initiative:          [ ]\n\nOverall Rating: [ ] / 5\n\nComments:\n_______________________________________________\n_______________________________________________\n\nEvaluator: _______________\nSignature: _______________\nDate: _______________\n" },
+    { id: "journal-cover", label: "Journal Cover Template", category: "Documentation", desc: "Standard cover page template for practicum journals", fileType: "DOCX", icon: FileText, content: "PRACTICUM JOURNAL COVER\n\nStudent Name: _______________\nProgram: _______________\nCompany: _______________\nDepartment: _______________\nAcademic Term: _______________\n\nSubmitted to:\n_______________\nPracticum Coordinator\n\nDate Submitted: _______________\n" },
+    { id: "endorsement", label: "Endorsement Letter", category: "Correspondence", desc: "Official deployment endorsement letter template", fileType: "DOCX", icon: FolderOpen, content: "ENDORSEMENT LETTER\n\nDate: _______________\n\nTo Whom It May Concern,\n\nGreetings!\n\nThis letter serves as an endorsement for _______________, a student of _______________, who is required to complete practicum hours as part of the academic curriculum.\n\nWe respectfully request your office to consider the student for placement and training relevant to the program outcomes.\n\nThank you for your support and cooperation.\n\nSincerely,\n\n_______________\nPracticum Coordinator\n" },
+  ])
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const toggleBox = (box: string) => setExpandedBoxes(prev => ({ ...prev, [box]: !prev[box] }));
+  const handleLoad = (t: TemplateItem) => {
+    setActiveTemplate(t)
+    setEditorContent(t.content)
+    toast.info(`Template "${t.label}" loaded`)
+  }
 
-  const templates = [
-    { key: "dtr", label: "DTR Template", badge: "DTR", badgeColor: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", desc: "Template for student daily attendance logging", content: "DAILY TIME RECORD\n\nStudent: Student Name\nDate: Date\n\nTime In: Time In AM\nTime Out: Time Out PM\nTotal Hours: Total Hours\n\nSignature: Signature\n\nNotes: " },
-    { key: "moa", label: "MOA Template", badge: "MOA", badgeColor: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400", desc: "Partnership agreement template with companies", content: "MEMORANDUM OF AGREEMENT\n\nThis Memorandum of Agreement is made and entered into between Company located at Address and Student of School for the purpose of Practicum Duration.\n\nThe Company agrees to provide training and supervision to the Student during the practicum period of Duration.\n\nThe Company shall evaluate the Student's performance and submit an Evaluation Form to the school monthly.\n\nThe Student agrees to follow all company rules, complete the required hours, and submit daily logs throughout the practicum.\n\nThis agreement shall remain in effect for a period of Duration beginning from Date.\n\nThis Memorandum of Agreement is signed by Company and Student on Date." },
-    { key: "evaluation", label: "Evaluation Template", badge: "Evaluation", badgeColor: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400", desc: "Performance evaluation template for interns", content: "STUDENT EVALUATION FORM\n\nStudent Name: Student Name\nCompany: Company\nEvaluation Period: Date\n\nRating Scale: 1-5\n\nPerformance Areas:\n1. Technical Skills: Skills\n2. Communication: Performance\n3. Work Ethic: Performance\n4. Teamwork: Performance\n5. Initiative: Performance\n\nOverall Rating: Overall Rating\n\nComments: Comments\n\nEvaluator: Evaluator\n\nSignature: Signature" },
-  ];
+  const handleSave = () => {
+    if (!activeTemplate) return
+
+    setTemplates((current) =>
+      current.map((template) =>
+        template.id === activeTemplate.id
+          ? { ...template, content: editorContent }
+          : template
+      )
+    )
+
+    setActiveTemplate((current) => current ? { ...current, content: editorContent } : current)
+    toast.success(`Template "${activeTemplate?.label}" saved successfully`)
+  }
+
+  const handleImport = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const extension = file.name.split(".").pop()?.toLowerCase()
+    if (!["docx", "pdf"].includes(extension || "")) {
+      toast.error("Only DOCX and PDF files can be imported.")
+      event.target.value = ""
+      return
+    }
+
+    const importedTemplate = {
+      id: `imported-${Date.now()}`,
+      label: file.name.replace(/\.[^/.]+$/, ""),
+      category: "Imported",
+      desc: `Imported ${extension?.toUpperCase()} file ready for template tracking`,
+      fileType: extension?.toUpperCase() || "FILE",
+      icon: extension === "pdf" ? FileBarChart : FileText,
+      content:
+        `IMPORTED TEMPLATE\n\nFile Name: ${file.name}\nFile Type: ${extension?.toUpperCase()}\nFile Size: ${(file.size / 1024).toFixed(1)} KB\n\nNote:\nThis file was imported into the template library. Binary ${extension?.toUpperCase()} preview is not available in the text editor, but the item is now listed in the admin library for tracking and replacement.`,
+    }
+
+    setTemplates((current) => [importedTemplate, ...current])
+    setActiveTemplate(importedTemplate)
+    setEditorContent(importedTemplate.content)
+    toast.success(`${file.name} imported successfully`)
+    event.target.value = ""
+  }
 
   return (
     <AdminLayout activeNav="templates">
-      <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-6 md:gap-8 items-start">
-        {/* Editor */}
-        <div className="flex-1 w-full">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-4">Template Editor</h3>
-            <div className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm whitespace-pre-wrap min-h-[300px] text-slate-800 dark:text-slate-200">
-              {editorContent || <span className="text-slate-400">Click "Load Template" on the right side to load a template.</span>}
-            </div>
+      <div className="flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-[28px] font-bold tracking-tight">Templates</h1>
+            <p className="text-[13px] text-[hsl(var(--muted-foreground))] mt-1">Edit and manage document templates for practicum requirements.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+              onChange={handleImport}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-[13px] font-semibold hover:opacity-90 transition-opacity"
+            >
+              <Upload className="h-4 w-4" /> Import DOCX / PDF
+            </button>
           </div>
         </div>
 
-        {/* Right sidebar - template cards */}
-        <div className="w-full lg:w-80 flex-shrink-0 space-y-4 lg:sticky lg:top-0">
-          {templates.map(t => (
-            <div key={t.key} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-              <button onClick={() => toggleBox(t.key)} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{t.label}</span>
-                  <span className={`px-2 py-0.5 rounded text-xs font-semibold ${t.badgeColor}`}>{t.badge}</span>
-                </div>
-                <svg className={`w-5 h-5 text-slate-400 transition-transform ${expandedBoxes[t.key] ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-              </button>
-              {expandedBoxes[t.key] && (
-                <div className="px-4 pb-4">
-                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{t.label}</p>
-                    <p className="text-xs text-slate-500 mt-1">{t.desc}</p>
-                    <button onClick={() => setEditorContent(t.content)} className="mt-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">Load Template</button>
+        {/* Split Layout */}
+        <div className="grid gap-6 lg:grid-cols-[320px_1fr] min-h-[600px]">
+          
+          {/* Template Library */}
+          <div className="flex flex-col gap-3">
+            <h2 className="text-[12px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] px-1">Template Library</h2>
+            <div className="flex flex-col gap-2">
+              {templates.map(t => (
+                <button 
+                  key={t.id}
+                  onClick={() => handleLoad(t)}
+                  className={cn(
+                    "w-full text-left p-4 rounded-xl border transition-all group",
+                    activeTemplate?.id === t.id 
+                      ? "border-[hsl(var(--foreground))] bg-[hsl(var(--foreground))] text-[hsl(var(--background))]" 
+                      : "border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:border-[hsl(var(--foreground))]/20 hover:shadow-sm"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={cn(
+                      "text-[10px] font-semibold uppercase tracking-wider",
+                      activeTemplate?.id === t.id ? "opacity-60" : "text-[hsl(var(--muted-foreground))]"
+                    )}>{t.category}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "text-[10px] font-semibold uppercase tracking-wider",
+                        activeTemplate?.id === t.id ? "opacity-70" : "text-[hsl(var(--muted-foreground))]"
+                      )}>{t.fileType}</span>
+                      <t.icon className="h-4 w-4 opacity-40" />
+                    </div>
                   </div>
+                  <h3 className="text-[14px] font-bold">{t.label}</h3>
+                  <p className={cn(
+                    "text-[11px] mt-1",
+                    activeTemplate?.id === t.id ? "opacity-60" : "text-[hsl(var(--muted-foreground))]"
+                  )}>{t.desc}</p>
+                  <div className={cn(
+                    "flex items-center gap-1 mt-3 text-[11px] font-semibold",
+                    activeTemplate?.id === t.id ? "opacity-80" : "text-clickable"
+                  )}>
+                    Edit template <ChevronRight className="h-3 w-3" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Editor */}
+          <div className="flex flex-col rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden">
+            {/* Editor Toolbar */}
+            <div className="h-12 flex items-center justify-between px-5 border-b border-[hsl(var(--border))] shrink-0">
+              <div className="flex items-center gap-3">
+                <div className={cn("h-2 w-2 rounded-full", activeTemplate ? "bg-sti-blue" : "bg-[hsl(var(--muted-foreground))]/30")} />
+                <span className="text-[12px] font-semibold text-[hsl(var(--muted-foreground))]">
+                  {activeTemplate ? activeTemplate.label : "Select a template to begin editing"}
+                </span>
+              </div>
+              {activeTemplate && (
+                <button onClick={handleSave} className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-[12px] font-semibold hover:opacity-90 transition-opacity">
+                  <Save className="h-3.5 w-3.5" /> Save
+                </button>
+              )}
+            </div>
+            
+            {/* Editor Content */}
+            <div className="flex-1 relative">
+              {activeTemplate ? (
+                <textarea 
+                  value={editorContent}
+                  onChange={(e) => setEditorContent(e.target.value)}
+                  className="w-full h-full p-6 bg-transparent font-mono text-[13px] leading-relaxed outline-none resize-none"
+                  spellCheck={false}
+                />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-[hsl(var(--muted-foreground))]">
+                  <FileEdit className="h-12 w-12 opacity-20" />
+                  <p className="text-[13px] font-medium">No template selected</p>
+                  <p className="text-[12px] opacity-60">Choose a template from the library to start editing</p>
                 </div>
               )}
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </AdminLayout>
-  );
+  )
 }

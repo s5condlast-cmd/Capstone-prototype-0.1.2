@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getSession, getUsers } from "@/lib/auth";
 import AdvisorLayout from "@/components/AdvisorLayout";
+import { BarChart3, CheckCircle2, Clock3, TrendingUp, TriangleAlert } from "lucide-react";
 
 export default function AdvisorReports() {
   const [submissions, setSubmissions] = useState<any[]>([]);
@@ -12,102 +13,112 @@ export default function AdvisorReports() {
     const s = getSession();
     if (!s || s.role !== "advisor") return;
     const allUsers = getUsers();
-    setStudents(allUsers.filter(u => u.role === "student"));
+    setStudents(allUsers.filter((u) => u.role === "student"));
     setSubmissions(JSON.parse(localStorage.getItem("practicum_submissions") || "[]"));
   }, []);
 
   const totalSubs = submissions.length;
-  const approved = submissions.filter(s => s.status === 'approved').length;
-  const pending = submissions.filter(s => s.status === 'pending').length;
-  const revision = submissions.filter(s => s.status === 'revision').length;
-
+  const approved = submissions.filter((s) => s.status === "approved").length;
+  const pending = submissions.filter((s) => s.status === "pending").length;
+  const revision = submissions.filter((s) => s.status === "revision").length;
+  const rejected = submissions.filter((s) => s.status === "rejected").length;
   const approvalRate = totalSubs > 0 ? Math.round((approved / totalSubs) * 100) : 0;
+  const compliance = students.length > 0 ? Math.round((students.filter((student) => submissions.some((sub) => sub.studentId === student.studentId)).length / students.length) * 100) : 0;
+
+  const bars = [38, 60, 42, 74, 58, 28, 66];
 
   return (
     <AdvisorLayout activeNav="reports">
-      <div className="max-w-[1600px] mx-auto space-y-6">
-        
-        {/* Performance Header */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-500 mb-1">Approval Efficiency</h3>
-            <div className="flex items-end gap-3">
-              <span className="text-4xl font-bold text-slate-800 dark:text-slate-100">{approvalRate}%</span>
-              <span className="text-xs text-green-500 font-bold mb-1">↑ 12% vs last week</span>
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: "Approval rate", value: `${approvalRate}%`, icon: TrendingUp, note: "Based on processed submissions" },
+            { label: "Pending queue", value: pending, icon: Clock3, note: "Items waiting for adviser action" },
+            { label: "Revision load", value: revision, icon: TriangleAlert, note: "Returned items to monitor" },
+            { label: "Student compliance", value: `${compliance}%`, icon: CheckCircle2, note: "Students with at least one record" },
+          ].map((card) => (
+            <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  <card.icon className="h-5 w-5" />
+                </div>
+                <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 dark:border-slate-700 dark:bg-slate-800/70">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Summary</span>
+                </div>
+              </div>
+              <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{card.value}</div>
+              <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-300">{card.label}</p>
+              <p className="mt-2 text-xs text-slate-500">{card.note}</p>
             </div>
-            <div className="mt-4 w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-green-500 rounded-full" style={{ width: `${approvalRate}%` }} />
-            </div>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-500 mb-1">Queue Health</h3>
-            <div className="flex items-end gap-3">
-              <span className="text-4xl font-bold text-slate-800 dark:text-slate-100">{pending}</span>
-              <span className="text-xs text-slate-500 font-bold mb-1">Pending items</span>
-            </div>
-            <p className="mt-4 text-xs text-slate-500">Average review time: <span className="font-bold text-blue-600">1.4 days</span></p>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm text-white bg-gradient-to-br from-indigo-600 to-blue-600 border-none">
-            <h3 className="text-sm font-bold opacity-80 mb-1">Student Compliance</h3>
-            <div className="flex items-end gap-3">
-              <span className="text-4xl font-bold">92%</span>
-            </div>
-            <p className="mt-4 text-xs opacity-80">24 of 26 students have submitted all core documents.</p>
-          </div>
-        </div>
+          ))}
+        </section>
 
-        {/* Charts Mockup / Stats Table */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Weekly Submission Volume</h3>
-              <select className="text-xs border-none bg-slate-50 dark:bg-slate-800 rounded-lg font-bold">
-                <option>Last 7 Days</option>
-                <option>Last 30 Days</option>
-              </select>
+        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5 dark:border-slate-800">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Weekly submission volume</h2>
+                <p className="text-sm text-slate-500">Approximate activity over the last seven days.</p>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                <BarChart3 className="h-3.5 w-3.5" />
+                Last 7 days
+              </div>
             </div>
-            <div className="p-6 h-64 flex items-end gap-2">
-              {[40, 70, 45, 90, 65, 30, 80].map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                  <div className="w-full bg-blue-100 dark:bg-blue-900/30 rounded-t-lg relative group-hover:bg-blue-600 transition-colors" style={{ height: `${h}%` }}>
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">{Math.round(h/2)}</div>
+            <div className="flex h-[310px] items-end gap-3 px-6 pb-6 pt-8">
+              {bars.map((height, index) => (
+                <div key={index} className="flex flex-1 flex-col items-center gap-3">
+                  <div className="flex w-full items-end rounded-2xl bg-slate-100 p-1 dark:bg-slate-800/70">
+                    <div
+                      className="w-full rounded-xl bg-blue-600 transition-all duration-500 hover:bg-blue-700"
+                      style={{ height: `${height * 2.4}px` }}
+                    />
                   </div>
-                  <span className="text-[10px] text-slate-400 font-bold">M T W T F S S"[i]</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Status Distribution</h3>
+          <div className="flex flex-col gap-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Status distribution</h2>
+              <p className="mt-1 text-sm text-slate-500">Current breakdown of all tracked submissions.</p>
+              <div className="mt-6 space-y-4">
+                {[
+                  ["Approved", approved, "bg-green-500"],
+                  ["Pending", pending, "bg-blue-500"],
+                  ["Revision", revision, "bg-amber-500"],
+                  ["Rejected", rejected, "bg-red-500"],
+                ].map(([label, value, color]) => {
+                  const pct = totalSubs > 0 ? Math.round((Number(value) / totalSubs) * 100) : 0;
+                  return (
+                    <div key={String(label)}>
+                      <div className="mb-2 flex items-center justify-between text-sm">
+                        <span className="font-medium text-slate-700 dark:text-slate-300">{label}</span>
+                        <span className="text-slate-500">{String(value)} · {pct}%</span>
+                      </div>
+                      <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex-1 p-8 flex items-center justify-center">
-              <div className="relative w-48 h-48 rounded-full border-[16px] border-slate-100 dark:border-slate-800 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{totalSubs}</p>
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Total Items</p>
-                </div>
-                {/* Visual representation of a donut chart using multiple borders or SVGs is complex here, keeping it simple */}
+
+            <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Adviser insight</h2>
+                <TrendingUp className="h-4 w-4 text-slate-400" />
               </div>
-              <div className="ml-8 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Approved: {approved}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-amber-500" />
-                  <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Pending: {pending}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500" />
-                  <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Revision: {revision}</span>
-                </div>
-              </div>
+              <p className="mt-5 text-4xl font-bold tracking-tight">{approvalRate}%</p>
+              <p className="mt-2 text-sm text-slate-300">Your approval efficiency is healthy. Focus next on pending and revision-heavy items to keep turnaround consistent.</p>
             </div>
           </div>
-        </div>
-
+        </section>
       </div>
     </AdvisorLayout>
   );

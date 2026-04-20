@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import AdvisorLayout from "@/components/AdvisorLayout";
+import { CheckCircle2, ListChecks, Plus, SlidersHorizontal } from "lucide-react";
 
 export default function AdvisorRequirements() {
-  const [requirements, setRequirements] = useState([
+  const [requirements] = useState([
     { id: "journal", label: "Daily Journal", required: true, deadline: "Weekly", weight: "20%", completion: "85%" },
     { id: "dtr", label: "Daily Time Record", required: true, deadline: "Monthly", weight: "30%", completion: "72%" },
     { id: "moa", label: "Memorandum of Agreement", required: true, deadline: "Pre-deployment", weight: "10%", completion: "98%" },
@@ -13,51 +14,80 @@ export default function AdvisorRequirements() {
 
   return (
     <AdvisorLayout activeNav="requirements">
-      <div className="max-w-[1600px] mx-auto space-y-6">
-        
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Practicum Requirements</h3>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-blue-700 transition-colors">Add New Requirement</button>
-        </div>
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
+        <section className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <ListChecks className="h-5 w-5" />
+            </div>
+            <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{requirements.length}</div>
+            <p className="mt-1 text-sm text-slate-500">Active requirement rules in the adviser workflow.</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">3</div>
+            <p className="mt-1 text-sm text-slate-500">Requirements with strong completion rates this term.</p>
+          </div>
+          <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-white">
+              <SlidersHorizontal className="h-5 w-5" />
+            </div>
+            <div className="text-3xl font-bold tracking-tight">40%</div>
+            <p className="mt-1 text-sm text-slate-300">Highest single requirement weight in the grading structure.</p>
+          </div>
+        </section>
 
-        <div className="grid grid-cols-1 gap-6">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <table className="w-full">
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Practicum requirements</h2>
+              <p className="text-sm text-slate-500">Manage requirement rules, grade weight, and average student completion.</p>
+            </div>
+            <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700">
+              <Plus className="h-4 w-4" />
+              Add requirement
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px]">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-left">
-                  <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase">Requirement</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase">Mandatory</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase">Deadline</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase">Grade Weight</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase">Avg. Completion</th>
-                  <th className="py-4 px-6 text-xs font-semibold text-slate-500 uppercase text-right">Settings</th>
+                <tr className="border-b border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-800/30">
+                  <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Requirement</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mandatory</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Deadline</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Weight</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Average completion</th>
+                  <th className="px-6 py-4 text-right text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                {requirements.map(req => (
-                  <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="py-5 px-6">
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{req.label}</p>
-                      <p className="text-[10px] text-slate-500 font-medium">TYPE: {req.id.toUpperCase()}</p>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                {requirements.map((req) => (
+                  <tr key={req.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <td className="px-6 py-5">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{req.label}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">Type · {req.id}</p>
                     </td>
-                    <td className="py-5 px-6">
-                      <div className={`w-10 h-5 rounded-full relative ${req.required ? 'bg-blue-600' : 'bg-slate-300'}`}>
-                        <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${req.required ? 'left-6' : 'left-1'}`} />
-                      </div>
+                    <td className="px-6 py-5">
+                      <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${req.required ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"}`}>
+                        {req.required ? "Required" : "Optional"}
+                      </span>
                     </td>
-                    <td className="py-5 px-6 text-sm text-slate-600 dark:text-slate-400 font-medium">{req.deadline}</td>
-                    <td className="py-5 px-6 text-sm font-bold text-slate-800 dark:text-slate-100">{req.weight}</td>
-                    <td className="py-5 px-6">
+                    <td className="px-6 py-5 text-sm text-slate-600 dark:text-slate-300">{req.deadline}</td>
+                    <td className="px-6 py-5 text-sm font-semibold text-slate-900 dark:text-white">{req.weight}</td>
+                    <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="flex-1 min-w-[100px] h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-600 rounded-full" style={{ width: req.completion }} />
+                        <div className="h-2.5 min-w-[120px] flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                          <div className="h-full rounded-full bg-blue-600" style={{ width: req.completion }} />
                         </div>
-                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{req.completion}</span>
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{req.completion}</span>
                       </div>
                     </td>
-                    <td className="py-5 px-6 text-right">
-                      <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-blue-600">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                    <td className="px-6 py-5 text-right">
+                      <button className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-600 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-700 dark:hover:text-blue-400">
+                        Configure
                       </button>
                     </td>
                   </tr>
@@ -65,8 +95,7 @@ export default function AdvisorRequirements() {
               </tbody>
             </table>
           </div>
-        </div>
-
+        </section>
       </div>
     </AdvisorLayout>
   );

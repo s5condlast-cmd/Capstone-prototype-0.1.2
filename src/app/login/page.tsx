@@ -1,109 +1,84 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { login, getSession, UserRole } from "@/lib/auth";
+import { FormEvent, useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { getSession, initializeUsers, login, UserRole } from "@/lib/auth"
+import { ArrowRight, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+
+function routeByRole(role: UserRole, router: ReturnType<typeof useRouter>) {
+  if (role === "admin") router.push("/admin")
+  else if (role === "advisor") router.push("/advisor")
+  else router.push("/dashboard")
+}
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [loginForm, setLoginForm] = useState({ identifier: "", password: "" })
 
   useEffect(() => {
-    const session = getSession();
-    if (session) {
-      if (session.role === "admin") {
-        router.push("/admin");
-      } else if (session.role === "advisor") {
-        router.push("/advisor");
-      } else {
-        router.push("/dashboard");
-      }
-    }
-  }, []);
+    initializeUsers()
+    const session = getSession()
+    if (session) routeByRole(session.role, router)
+  }, [router])
 
-  const handleDemoLogin = (role: UserRole) => {
-    setIsLoading(true);
-    setTimeout(() => {
-      login(role);
-      if (role === "admin") {
-        router.push("/admin");
-      } else if (role === "advisor") {
-        router.push("/advisor");
-      } else {
-        router.push("/dashboard");
-      }
-    }, 500);
-  };
+  const handleLogin = (e: FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    const session = login(loginForm.identifier, loginForm.password)
+    if (!session) {
+      setIsLoading(false)
+      toast.error("Invalid credentials", { description: "Please check your username and password." })
+      return
+    }
+
+    toast.success(`Welcome back, ${session.name}`)
+    routeByRole(session.role, router)
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-      <div className="absolute inset-0 overflow-hidden">
-        <div 
-          className="absolute inset-0 opacity-20 dark:opacity-10" 
-          style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, #94A3B8 1px, transparent 0)`,
-            backgroundSize: '40px 40px'
-          }}
-        />
-        <div 
-          className="absolute top-0 left-0 w-full h-[40vh] bg-gradient-to-b from-blue-50 to-transparent dark:from-slate-900" 
-        />
-      </div>
-
-      <div className="relative z-10 w-full max-w-md px-4">
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 bg-blue-600 shadow-lg shadow-blue-500/20">
-              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
+    <div className="min-h-screen bg-[hsl(var(--background))] px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-center">
+      <div className="w-full max-w-md">
+        <div className="rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-xl p-6 sm:p-8">
+          <div className="mb-8 text-center">
+            <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[hsl(var(--foreground))]">
+              <span className="text-[hsl(var(--background))] font-black text-[13px] tracking-tight">AIP</span>
             </div>
-            <h1 className="text-2xl font-extrabold mb-2 text-slate-900 dark:text-white tracking-tight">
-              Practicum System
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400">Select a demo account to continue</p>
+            <h1 className="text-[22px] font-bold tracking-tight sm:text-[26px]">AIP Practicum System</h1>
+            <p className="mt-2 text-[13px] text-[hsl(var(--muted-foreground))] sm:text-[14px]">
+              Sign in to your account
+            </p>
           </div>
 
-          <div className="space-y-3">
-            <button
-              onClick={() => handleDemoLogin("admin")}
-              disabled={isLoading}
-              className="w-full py-3.5 text-white font-bold rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 bg-violet-600 hover:bg-violet-700 shadow-lg shadow-violet-500/20"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              Admin Demo
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Username or Email</label>
+              <input
+                value={loginForm.identifier}
+                onChange={(e) => setLoginForm((current) => ({ ...current, identifier: e.target.value }))}
+                placeholder="Enter username or email"
+                className="h-11 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 text-[14px] outline-none transition focus:ring-2 focus:ring-[hsl(var(--foreground))]/10"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">Password</label>
+              <input
+                type="password"
+                value={loginForm.password}
+                onChange={(e) => setLoginForm((current) => ({ ...current, password: e.target.value }))}
+                placeholder="Enter password"
+                className="h-11 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 text-[14px] outline-none transition focus:ring-2 focus:ring-[hsl(var(--foreground))]/10"
+              />
+            </div>
+            <button type="submit" disabled={isLoading} className="inline-flex items-center justify-center h-11 w-full rounded-xl text-[13px] font-semibold uppercase tracking-[0.18em] bg-[hsl(var(--foreground))] text-[hsl(var(--background))] hover:opacity-90 transition disabled:opacity-50">
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+              Sign In
             </button>
-
-            <button
-              onClick={() => handleDemoLogin("advisor")}
-              disabled={isLoading}
-              className="w-full py-3.5 text-white font-bold rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a4 4 0 11-8 0 4 4 0 018 0zM17 20a4 4 0 10-8 0 4 4 0 008 0z" />
-              </svg>
-              Advisor Demo
-            </button>
-
-            <button
-              onClick={() => handleDemoLogin("student")}
-              disabled={isLoading}
-              className="w-full py-3.5 text-white font-bold rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              Student Demo
-            </button>
-          </div>
-
-          <p className="text-xs text-center mt-6 text-slate-400 dark:text-slate-500">
-            Demo accounts for testing the system
-          </p>
+          </form>
         </div>
       </div>
     </div>
-  );
+  )
 }

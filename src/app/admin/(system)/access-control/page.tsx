@@ -1,126 +1,148 @@
-"use client";
+"use client"
 
-import AdminLayout from "@/components/AdminLayout";
+import AdminLayout from "@/components/AdminLayout"
 import { 
-  ShieldAlert, 
   ShieldCheck, 
-  UserSquare2, 
-  Settings2,
   Lock,
+  History,
   Eye,
-  Edit3,
-  History
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+  Edit3
+} from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export default function AdminAccessControl() {
   const roles = [
-    { name: "Super Administrator", desc: "Unrestricted system access including security logs and data backups.", perms: ["read:all", "write:all", "delete:all", "sys:admin"], color: "text-red-600 bg-red-50 border-red-100" },
-    { name: "Academic Adviser", desc: "Supervise student progress, review journals, and provide feedback.", perms: ["read:students", "write:feedback", "read:docs"], color: "text-amber-600 bg-amber-50 border-amber-100" },
-    { name: "Practicum Student", desc: "Submit requirements, view evaluations, and maintain logbooks.", perms: ["write:submissions", "read:feedback", "read:own"], color: "text-emerald-600 bg-emerald-50 border-emerald-100" },
-  ];
+    { 
+      name: "Super Administrator", 
+      desc: "Full system access including security, data management, and user control.", 
+      perms: ["read:all", "write:all", "delete:all", "sys:admin"],
+      level: "Critical"
+    },
+    { 
+      name: "Academic Adviser", 
+      desc: "Supervise student progress, review submissions, and provide feedback.", 
+      perms: ["read:students", "write:feedback", "read:docs"],
+      level: "Standard"
+    },
+    { 
+      name: "Practicum Student", 
+      desc: "Submit requirements, view evaluations, and maintain activity logs.", 
+      perms: ["write:submissions", "read:feedback", "read:own"],
+      level: "Basic"
+    },
+  ]
+
+  const auditLog = [
+    { action: "Role 'Admin' permissions updated", time: "14 Apr 2026, 09:32 AM" },
+    { action: "New adviser account provisioned", time: "13 Apr 2026, 02:15 PM" },
+    { action: "Session timeout policy changed to 30m", time: "12 Apr 2026, 11:48 AM" },
+  ]
+
+  const policies = [
+    { label: "2FA Enforcement", value: "Active", active: true },
+    { label: "Session Timeout", value: "30 min", active: false },
+    { label: "IP Restriction", value: "None", active: false },
+    { label: "Password Policy", value: "Strong", active: true },
+  ]
 
   return (
     <AdminLayout activeNav="access-control">
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Access Control</h2>
-            <p className="text-slate-500 mt-1 text-lg">Define role-based permissions and system security policies.</p>
+            <h1 className="text-[28px] font-bold tracking-tight">Access Control</h1>
+            <p className="text-[13px] text-[hsl(var(--muted-foreground))] mt-1">Role-based permissions and security policies.</p>
           </div>
-          <Button className="bg-slate-900 dark:bg-white dark:text-slate-900 font-bold">
-            <Lock className="mr-2 h-4 w-4" /> Global Lockdown
-          </Button>
+          <button className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border-2 border-[hsl(var(--destructive))] text-[hsl(var(--destructive))] text-[13px] font-semibold hover:bg-[hsl(var(--destructive))] hover:text-white transition-colors">
+            <Lock className="h-4 w-4" /> Emergency Lockdown
+          </button>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
-              <CardHeader>
-                <CardTitle>Role Definition</CardTitle>
-                <CardDescription>Configure granular permissions for each user classification.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                 <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {roles.map(role => (
-                      <div key={role.name} className="p-8 flex flex-col gap-6 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
-                        <div className="flex items-start justify-between gap-4">
-                           <div className="flex items-center gap-4">
-                              <div className={`p-3 rounded-xl border ${role.color} dark:bg-opacity-10`}>
-                                 <ShieldCheck className="h-6 w-6" />
-                              </div>
-                              <div>
-                                 <h4 className="font-bold text-lg">{role.name}</h4>
-                                 <p className="text-sm text-slate-500 max-w-md mt-1">{role.desc}</p>
-                              </div>
-                           </div>
-                           <Button variant="outline" size="sm" className="h-9">
-                              <Settings2 className="mr-2 h-3.5 w-3.5" /> Configure
-                           </Button>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                           {role.perms.map(p => (
-                             <Badge key={p} variant="secondary" className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 font-mono text-[10px] lowercase">
-                               {p}
-                             </Badge>
-                           ))}
-                        </div>
+        {/* Main Grid */}
+        <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+          {/* Role Definitions */}
+          <div className="flex flex-col gap-4">
+            <h2 className="text-[15px] font-semibold px-1">Role Definitions</h2>
+            <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden">
+              {roles.map((role, i) => (
+                <div key={role.name} className={cn(
+                  "p-6 hover:bg-[hsl(var(--muted))]/30 transition-colors",
+                  i < roles.length - 1 && "border-b border-[hsl(var(--border))]"
+                )}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-[hsl(var(--muted))] flex items-center justify-center">
+                        <ShieldCheck className="h-5 w-5 text-[hsl(var(--foreground))]" />
                       </div>
+                      <div>
+                        <h3 className="text-[15px] font-bold">{role.name}</h3>
+                        <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">{role.desc}</p>
+                      </div>
+                    </div>
+                    <button className="text-clickable text-[12px] font-semibold flex items-center gap-1 shrink-0 ml-4">
+                      <Edit3 className="h-3 w-3" /> Edit
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 mt-4 flex-wrap">
+                    <span className={cn(
+                      "inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+                      role.level === "Critical" ? "bg-[hsl(var(--foreground))] text-[hsl(var(--background))]" :
+                      role.level === "Standard" ? "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]" :
+                      "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+                    )}>
+                      {role.level}
+                    </span>
+                    {role.perms.map(p => (
+                      <span key={p} className="px-2 py-0.5 rounded bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] font-mono text-[10px]">
+                        {p}
+                      </span>
                     ))}
-                 </div>
-              </CardContent>
-            </Card>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="space-y-6">
-             <Card className="border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 bg-slate-900 text-white overflow-hidden">
-                <CardHeader className="pb-4">
-                   <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center mb-2">
-                      <ShieldAlert className="h-5 w-5 text-red-400" />
-                   </div>
-                   <CardTitle className="text-white">Security Audit</CardTitle>
-                   <CardDescription className="text-slate-400">Recent security-related events.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                   {[1, 2, 3].map(i => (
-                     <div key={i} className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors cursor-default">
-                        <History className="h-4 w-4 text-slate-500 mt-0.5 shrink-0" />
-                        <div>
-                           <p className="text-xs font-medium">Role 'Admin' updated by Superuser</p>
-                           <p className="text-[10px] text-slate-500 mt-1">14 Apr 2026, 09:32 AM</p>
-                        </div>
-                     </div>
-                   ))}
-                   <Separator className="bg-white/10" />
-                   <Button variant="ghost" className="w-full text-xs font-bold hover:bg-white/10 hover:text-white">View Full Audit Log</Button>
-                </CardContent>
-             </Card>
+          {/* Right Column */}
+          <div className="flex flex-col gap-6">
+            {/* Audit Log */}
+            <div className="flex flex-col gap-3">
+              <h2 className="text-[12px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] px-1">Security Audit</h2>
+              <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-4">
+                {auditLog.map((entry, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <History className="h-4 w-4 text-[hsl(var(--muted-foreground))] mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[12px] font-medium">{entry.action}</p>
+                      <p className="text-[11px] text-[hsl(var(--muted-foreground))]">{entry.time}</p>
+                    </div>
+                  </div>
+                ))}
+                <div className="pt-3 border-t border-[hsl(var(--border))]">
+                  <span className="text-clickable text-[12px] font-semibold">View full audit log →</span>
+                </div>
+              </div>
+            </div>
 
-             <Card className="border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
-                <CardHeader>
-                   <CardTitle className="text-sm uppercase tracking-widest text-slate-500">Quick Policies</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                   <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Two-Factor Auth</span>
-                      <Badge className="bg-blue-600">Enforced</Badge>
-                   </div>
-                   <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Session Timeout</span>
-                      <span className="text-sm text-slate-500">30 Mins</span>
-                   </div>
-                   <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Auto-Archive</span>
-                      <span className="text-sm text-slate-500">Disabled</span>
-                   </div>
-                </CardContent>
-             </Card>
+            {/* Security Policies */}
+            <div className="flex flex-col gap-3">
+              <h2 className="text-[12px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] px-1">Security Policies</h2>
+              <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 space-y-3">
+                {policies.map(p => (
+                  <div key={p.label} className="flex items-center justify-between py-1">
+                    <span className="text-[13px] font-medium">{p.label}</span>
+                    <span className={cn(
+                      "text-[12px] font-semibold tabular-nums",
+                      p.active ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"
+                    )}>{p.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </AdminLayout>
-  );
+  )
 }

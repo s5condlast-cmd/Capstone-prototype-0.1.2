@@ -3,21 +3,18 @@
 import { useState, useEffect } from "react"
 import { getSession, getUsers, User } from "@/lib/auth"
 import AdminLayout from "@/components/AdminLayout"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { toast } from "sonner"
-import { 
-  UserPlus, 
-  CheckCircle2, 
-  ArrowRight,
-  ShieldCheck,
-  Search,
-  Users
-} from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { Search, Users, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface StudentAdviser { studentId: string; adviserId: string; }
@@ -41,9 +38,7 @@ export default function AdminAdviserAssignment() {
   const handleAssign = (studentId: string, studentName: string) => {
     const adviserId = pendingAssignments[studentId]
     if (!adviserId) return
-
     const adviserName = advisors.find(a => a.id === adviserId)?.name
-
     const existing = assignments.find(a => a.studentId === studentId)
     let updated: StudentAdviser[]
     if (existing) {
@@ -53,16 +48,8 @@ export default function AdminAdviserAssignment() {
     }
     setAssignments(updated)
     localStorage.setItem("practicum_adviser_assignments", JSON.stringify(updated))
-    
-    setPendingAssignments(prev => {
-      const next = { ...prev }
-      delete next[studentId]
-      return next
-    })
-
-    toast.success(`Success`, {
-      description: `${studentName} is now paired with ${adviserName}`
-    })
+    setPendingAssignments(prev => { const next = { ...prev }; delete next[studentId]; return next })
+    toast.success(`${studentName} assigned to ${adviserName}`)
   }
 
   const filteredStudents = students.filter(s => 
@@ -70,126 +57,130 @@ export default function AdminAdviserAssignment() {
     s.studentId.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const assignedCount = assignments.length
+  const remainingCount = students.length - assignedCount
+  const progress = students.length > 0 ? Math.round((assignedCount / students.length) * 100) : 0
+
   return (
     <AdminLayout activeNav="adviser-assignment">
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Adviser Pairing</h2>
-            <p className="text-slate-500 mt-1 text-lg">Connect students with their academic supervisors.</p>
+            <h1 className="text-[28px] font-bold tracking-tight">Adviser Assignments</h1>
+            <p className="text-[13px] text-[hsl(var(--muted-foreground))] mt-1">Pair students with their academic supervisors.</p>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-full border border-indigo-100 dark:border-indigo-800">
-            <ShieldCheck className="h-4 w-4 text-indigo-600" />
-            <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-widest">Active Pairing Engine</span>
+          <div className="flex items-center gap-4 px-4 py-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+            <div className="text-center">
+              <div className="text-[18px] font-bold tabular-nums">{assignedCount}/{students.length}</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Assigned</div>
+            </div>
+            <div className="h-8 w-px bg-[hsl(var(--border))]" />
+            <div className="text-center">
+              <div className="text-[18px] font-bold tabular-nums text-sti-blue">{remainingCount}</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Remaining</div>
+            </div>
+            <div className="h-8 w-px bg-[hsl(var(--border))]" />
+            <div className="w-24">
+              <div className="text-[11px] font-semibold text-right mb-1.5 text-[hsl(var(--muted-foreground))]">{progress}%</div>
+              <div className="h-1.5 w-full bg-[hsl(var(--muted))] rounded-full overflow-hidden">
+                <div className="h-full bg-[hsl(var(--foreground))] rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
           </div>
         </div>
 
-        <Card className="border-none shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 overflow-hidden">
-          <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 px-8 py-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="relative max-w-md w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input 
-                  placeholder="Filter student list..." 
-                  className="pl-10 h-11 bg-white dark:bg-slate-950" 
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-6">
-                <div className="flex flex-col items-end">
-                  <span className="text-sm font-bold">{assignments.length} / {students.length}</span>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Paired</span>
-                </div>
-                <div className="h-10 w-[1px] bg-slate-200 dark:bg-slate-800" />
-                <div className="flex flex-col items-end">
-                  <span className="text-sm font-bold text-amber-600">{students.length - assignments.length}</span>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Unassigned</span>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="px-8 py-5">Student Information</TableHead>
-                  <TableHead className="py-5">Current Connection</TableHead>
-                  <TableHead className="px-8 py-5 text-right">Pairing Action</TableHead>
+        {/* Search */}
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+          <input 
+            placeholder="Search students..." 
+            className="w-full h-9 pl-10 pr-4 rounded-lg bg-[hsl(var(--muted))] text-[13px] font-medium placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--foreground))]/10 transition-all"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {/* Assignment Table */}
+        <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] h-11 pl-5">Student</TableHead>
+                <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] h-11">Current Adviser</TableHead>
+                <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] h-11">Assign Adviser</TableHead>
+                <TableHead className="w-[100px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredStudents.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-32 text-center text-[hsl(var(--muted-foreground))] text-[13px]">
+                    No students found.
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStudents.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="h-40 text-center text-slate-500">
-                      No matching students found.
+              ) : filteredStudents.map(student => {
+                const assignment = assignments.find(a => a.studentId === student.studentId)
+                const adviser = assignment ? advisors.find(a => a.id === assignment.adviserId) : null
+                const selectedId = pendingAssignments[student.studentId] !== undefined ? pendingAssignments[student.studentId] : (assignment?.adviserId || "")
+                const isModified = pendingAssignments[student.studentId] !== undefined && pendingAssignments[student.studentId] !== (assignment?.adviserId || "")
+                
+                return (
+                  <TableRow key={student.id} className="group hover:bg-[hsl(var(--muted))]/50 transition-colors">
+                    <TableCell className="pl-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8 rounded-lg">
+                          <AvatarFallback className="bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] font-bold text-[11px] rounded-lg">
+                            {student.name?.charAt(0) || "S"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <span className="text-[13px] font-semibold block">{student.name}</span>
+                          <span className="text-[11px] text-[hsl(var(--muted-foreground))]">{student.studentId}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {adviser ? (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-[hsl(var(--foreground))]" />
+                          <span className="text-[13px] font-medium">{adviser.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-[12px] font-medium text-[hsl(var(--muted-foreground))] italic">Unassigned</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <select 
+                        value={selectedId} 
+                        onChange={e => setPendingAssignments(prev => ({ ...prev, [student.studentId]: e.target.value }))} 
+                        className="h-9 w-[220px] rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--foreground))]/10"
+                      >
+                        <option value="">Select adviser...</option>
+                        {advisors.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>
+                    </TableCell>
+                    <TableCell>
+                      <button 
+                        disabled={!isModified}
+                        onClick={() => handleAssign(student.studentId, student.name)}
+                        className={cn(
+                          "h-8 px-4 rounded-lg text-[12px] font-semibold transition-all",
+                          isModified 
+                            ? "bg-[hsl(var(--foreground))] text-[hsl(var(--background))] hover:opacity-90" 
+                            : "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] cursor-not-allowed"
+                        )}
+                      >
+                        Save
+                      </button>
                     </TableCell>
                   </TableRow>
-                ) : filteredStudents.map(student => {
-                  const assignment = assignments.find(a => a.studentId === student.studentId);
-                  const adviser = assignment ? advisors.find(a => a.id === assignment.adviserId) : null;
-                  const selectedId = pendingAssignments[student.studentId] !== undefined ? pendingAssignments[student.studentId] : (assignment?.adviserId || "");
-                  const isModified = pendingAssignments[student.studentId] !== undefined && pendingAssignments[student.studentId] !== (assignment?.adviserId || "");
-                  
-                  return (
-                    <TableRow key={student.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
-                      <TableCell className="px-8 py-5">
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-10 w-10">
-                            <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-xs">
-                              {student.name.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-900 dark:text-white">{student.name}</span>
-                            <span className="text-xs text-slate-500">{student.studentId} • BSIT</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-5">
-                        {adviser ? (
-                          <div className="flex items-center gap-2">
-                            <div className="p-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{adviser.name}</span>
-                          </div>
-                        ) : (
-                          <Badge variant="outline" className="text-slate-400 font-normal">Pending Assignment</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="px-8 py-5 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <select 
-                            value={selectedId} 
-                            onChange={e => setPendingAssignments(prev => ({ ...prev, [student.studentId]: e.target.value }))} 
-                            className="flex h-10 w-[240px] items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:focus:ring-indigo-400"
-                          >
-                            <option value="">Select an Academic Adviser...</option>
-                            {advisors.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                          </select>
-                          
-                          <Button 
-                            size="icon" 
-                            disabled={!isModified}
-                            onClick={() => handleAssign(student.studentId, student.name)}
-                            className={cn(
-                              "h-10 w-10 transition-all rounded-lg shadow-sm",
-                              isModified ? "bg-indigo-600 hover:bg-indigo-700 scale-110" : "bg-slate-100 text-slate-400 dark:bg-slate-800"
-                            )}
-                          >
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </AdminLayout>
-  );
+  )
 }

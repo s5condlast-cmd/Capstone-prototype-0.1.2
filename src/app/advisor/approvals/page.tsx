@@ -1,8 +1,60 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getSession } from "@/lib/auth";
 import AdvisorLayout from "@/components/AdvisorLayout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Calendar,
+  CheckCircle2,
+  Clock,
+  FileEdit,
+  FileSearch,
+  Mic,
+  MicOff,
+  Send,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+declare global {
+  interface Window {
+    webkitSpeechRecognition?: new () => SpeechRecognition;
+    SpeechRecognition?: new () => SpeechRecognition;
+  }
+
+  interface SpeechRecognition extends EventTarget {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    start: () => void;
+    stop: () => void;
+    onresult: ((event: SpeechRecognitionEvent) => void) | null;
+    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+    onend: (() => void) | null;
+  }
+
+  interface SpeechRecognitionEvent {
+    resultIndex: number;
+    results: {
+      [key: number]: {
+        [key: number]: {
+          transcript: string;
+        };
+        isFinal: boolean;
+        length: number;
+      };
+      length: number;
+    };
+  }
+
+  interface SpeechRecognitionErrorEvent {
+    error: string;
+  }
+}
 
 interface Submission {
   id: string;
@@ -12,238 +64,580 @@ interface Submission {
   title: string;
   status: "pending" | "approved" | "rejected" | "revision";
   submittedAt: string;
-  isUrgent: boolean;
+  isUrgent?: boolean;
   content?: string;
   feedback?: string;
-  comments?: Array<{ id: string; text: string; author: string; time: string; selectedText?: string }>;
+  fileName?: string;
+}
+
+function getStoredSubmissions(): Submission[] {
+  if (typeof window === "undefined") return [];
+  const session = getSession();
+  if (!session || session.role !== "advisor") return [];
+
+  const stored = JSON.parse(localStorage.getItem("practicum_submissions") || "[]");
+  if (stored.length > 0) return stored;
+
+  return [
+    {
+      id: "demo-journal-1",
+      type: "journal",
+      studentName: "Demo Student",
+      studentId: "2024-0001",
+      title: "Journal Entry - Sample Review",
+      status: "pending",
+      submittedAt: new Date().toISOString(),
+      content: "Today I assisted with office encoding, organized practicum files, and learned how the document workflow is processed. I also encountered delays in validating some records and need to improve my summary details.",
+      feedback: "Please make the journal entry more specific and include clearer learning outcomes.",
+      fileName: "journal-sample.docx",
+    },
+    {
+      id: "demo-moa-1",
+      type: "moa",
+      studentName: "Demo Student 2",
+      studentId: "2024-0002",
+      title: "MOA Submission - Sample Review",
+      status: "revision",
+      submittedAt: new Date().toISOString(),
+      content: "Memorandum of Agreement between the company and student. Some signatory details and practicum duration fields are incomplete.",
+      feedback: "Please complete the missing signatory names and practicum dates before resubmission.",
+      fileName: "moa-sample.pdf",
+    },
+  ];
+}
+
+function getAutoInspection(submission: Submission | null) {
+  if (!submission) {
+    return {
+      starterFeedback: "",
+    };
+  }
+
+  const starterFeedbackByType: Record<string, string> = {
+    journal: "Please revise the journal entry by adding clearer task details, learning outcomes, and progress updates.",
+    moa: "Please review the MOA carefully and complete the missing names, signatures, and required agreement details.",
+    dtr: "Please correct the DTR entries and make sure the hours, dates, and signatures are complete and readable.",
+    evaluation: "Please update the evaluation form and ensure the rating fields, evaluator details, and signature section are complete.",
+  };
+
+  return {
+    starterFeedback:
+      submission.feedback?.trim() ||
+      starterFeedbackByType[submission.type] ||
+      "Please review the document and complete the missing details before resubmission.",
+  };
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getWordSuggestions(word: string) {
+  const cleaned = word.trim();
+  if (!cleaned) return [];
+
+  const lower = cleaned.toLowerCase();
+  const suggestionMap: Record<string, string[]> = {
+    revise: ["update", "improve", "correct"],
+    revised: ["updated", "improved", "corrected"],
+    wrong: ["incorrect", "unclear", "incomplete"],
+    issue: ["concern", "problem", "requirement"],
+    fix: ["correct", "update", "revise"],
+    add: ["include", "provide", "insert"],
+    make: ["ensure", "provide", "keep"],
+    clear: ["specific", "detailed", "readable"],
+    good: ["acceptable", "complete", "appropriate"],
+    bad: ["incomplete", "unclear", "incorrect"],
+  };
+
+  return suggestionMap[lower] || [`${cleaned} update`, `${cleaned} revision`, `${cleaned} detail`];
 }
 
 export default function AdvisorApprovals() {
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>(() => getStoredSubmissions());
+  const [selectedId, setSelectedId] = useState<string | null>(() => getStoredSubmissions()[0]?.id || null);
   const [feedback, setFeedback] = useState("");
-  const [newComment, setNewComment] = useState("");
-  const [selectedText, setSelectedText] = useState("");
   const [filter, setFilter] = useState("all");
-  const contentRef = useRef<HTMLDivElement>(null);
+  const [lastAction, setLastAction] = useState<"approved" | "rejected" | "revision" | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [selectedWord, setSelectedWord] = useState("");
+  const [replacementDraft, setReplacementDraft] = useState("");
+  const [isSidePanelCollapsed, setIsSidePanelCollapsed] = useState(false);
+  const [selectionPopup, setSelectionPopup] = useState<{ top: number; left: number } | null>(null);
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  const filtered = useMemo(
+    () => submissions.filter((submission) => filter === "all" || submission.status === filter),
+    [submissions, filter]
+  );
+
+  const selectedSub = useMemo(
+    () => submissions.find((submission) => submission.id === selectedId) || null,
+    [submissions, selectedId]
+  );
 
   useEffect(() => {
-    const s = getSession();
-    if (!s || s.role !== "advisor") return;
-    const subs: Submission[] = JSON.parse(localStorage.getItem("practicum_submissions") || "[]");
-    setSubmissions(subs);
-    if (subs.length > 0) setSelectedId(subs[0].id);
-  }, []);
+    if (!editorRef.current) return;
+    if (editorRef.current.innerText !== feedback) {
+      editorRef.current.innerText = feedback;
+    }
+  }, [feedback]);
 
-  const selectedSub = submissions.find(s => s.id === selectedId);
+  const handleSelectSubmission = (id: string) => {
+    setSelectedId(id);
+    const current = submissions.find((submission) => submission.id === id) || null;
+    const inspected = getAutoInspection(current);
+    setFeedback(current?.feedback?.trim() || inspected.starterFeedback);
+    setSelectedWord("");
+    setReplacementDraft("");
+    setSelectionPopup(null);
+    setLastAction(null);
+    setIsSidePanelCollapsed(true);
+    toast.success("Document inspected and loaded into the review boxes.");
+  };
 
   const handleAction = (action: "approved" | "rejected" | "revision") => {
-    if (!selectedId) return;
-    const updated = submissions.map(s => s.id === selectedId ? { ...s, status: action, feedback } : s);
+    if (!selectedId || !selectedSub) return;
+
+    const updated = submissions.map((submission) =>
+      submission.id === selectedId ? { ...submission, status: action, feedback } : submission
+    );
+
     setSubmissions(updated);
     localStorage.setItem("practicum_submissions", JSON.stringify(updated));
-    setFeedback("");
+    setLastAction(action);
+    toast.success(
+      action === "approved"
+        ? "Submission approved"
+        : action === "revision"
+          ? "Marked for revision"
+          : "Submission rejected"
+    );
   };
 
-  const addComment = () => {
-    if (!selectedId || (!newComment && !selectedText)) return;
-    const updated = submissions.map(s => {
-      if (s.id === selectedId) {
-        const c = s.comments || [];
-        return {
-          ...s,
-          comments: [...c, {
-            id: Date.now().toString(),
-            text: newComment,
-            author: "Advisor",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            selectedText
-          }]
-        };
-      }
-      return s;
-    });
-    setSubmissions(updated);
-    localStorage.setItem("practicum_submissions", JSON.stringify(updated));
-    setNewComment("");
-    setSelectedText("");
+  const handleEditorInput = (event: React.FormEvent<HTMLDivElement>) => {
+    setFeedback(event.currentTarget.innerText);
   };
 
-  const handleTextSelection = () => {
+  const handleWordSelection = () => {
     const selection = window.getSelection();
-    if (selection && selection.toString().trim().length > 0) {
-      setSelectedText(selection.toString().trim());
+    const text = selection?.toString().trim() || "";
+    if (!selection || !text || text.includes(" ") || selection.rangeCount === 0) {
+      setSelectedWord("");
+      setReplacementDraft("");
+      setSelectionPopup(null);
+      return;
     }
+
+    const rangeRect = selection.getRangeAt(0).getBoundingClientRect();
+    setSelectedWord(text);
+    setReplacementDraft(text);
+    setSelectionPopup({
+      top: Math.max(16, rangeRect.top + window.scrollY - 12),
+      left: rangeRect.left + window.scrollX + rangeRect.width / 2,
+    });
+    setIsSidePanelCollapsed(true);
   };
 
-  const filtered = submissions.filter(s => filter === "all" || s.status === filter);
+  const replaceSelectedWord = (replacement: string) => {
+    if (!selectedWord.trim()) {
+      toast.error("Select one word in the adviser feedback first.");
+      return;
+    }
+
+    const next = feedback.replace(new RegExp(`\\b${escapeRegExp(selectedWord)}\\b`), replacement);
+    setFeedback(next);
+    setSelectedWord(replacement);
+    setReplacementDraft(replacement);
+    setSelectionPopup(null);
+    toast.success("Selected word replaced.");
+  };
+
+  const toggleSpeechToText = () => {
+    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionCtor) {
+      toast.error("Speech-to-text is not supported in this browser.");
+      return;
+    }
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      let transcript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setFeedback((current) => `${current}${current.endsWith("\n") || current.length === 0 ? "" : " "}${transcript}`);
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      toast.error("Speech recognition stopped unexpectedly.");
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+    toast.success("Speech-to-text started.");
+  };
+
+  const wordSuggestions = getWordSuggestions(selectedWord);
+
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric", year: "numeric",
+  });
 
   return (
     <AdvisorLayout activeNav="approvals">
-      <div className="max-w-[1600px] mx-auto h-[calc(100vh-180px)] flex flex-col lg:flex-row gap-6">
-        
-        {/* Left: Submission Panel (Scrollable List) */}
-        <div className="w-full lg:w-72 flex-shrink-0 flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-            <h3 className="font-bold text-sm">Review Queue</h3>
-            <select value={filter} onChange={e => setFilter(e.target.value)} className="text-[10px] bg-slate-50 dark:bg-slate-800 border-none rounded-lg font-bold outline-none">
-              <option value="all">ALL</option>
-              <option value="pending">PENDING</option>
-              <option value="revision">REVISION</option>
-            </select>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <p className="text-[13px] text-[hsl(var(--muted-foreground))]">Adviser Review</p>
+            <h1 className="text-[28px] font-bold tracking-tight mt-1">Document Approvals</h1>
           </div>
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/50">
-            {filtered.map(sub => (
-              <button 
-                key={sub.id} 
-                onClick={() => setSelectedId(sub.id)}
-                className={`w-full text-left p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${selectedId === sub.id ? 'bg-blue-50 dark:bg-blue-900/20 ring-1 ring-inset ring-blue-100 dark:ring-blue-900/30' : ''}`}
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">{sub.type}</span>
-                  <span className={`w-2 h-2 rounded-full ${sub.status === 'approved' ? 'bg-green-500' : sub.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`} />
-                </div>
-                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 line-clamp-1">{sub.title}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{sub.studentName}</p>
-              </button>
-            ))}
-          </div>
+          <Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-[0.18em] px-3 py-1.5 self-start sm:self-auto border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]">
+            {today}
+          </Badge>
         </div>
 
-        {/* Center: Document Viewer */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-          {selectedSub ? (
-            <>
-              {/* Toolbar */}
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/20">
+        {lastAction && selectedSub && (
+          <div className={cn(
+            "rounded-xl border px-5 py-4 flex items-center gap-4 transition-all animate-in fade-in slide-in-from-top-2",
+            lastAction === "approved" ? "bg-green-500/10 border-green-500/20" :
+            lastAction === "rejected" ? "bg-red-500/10 border-red-500/20" :
+            "bg-blue-500/10 border-blue-500/20"
+          )}>
+            <div className={cn(
+              "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
+              lastAction === "approved" ? "bg-green-600" :
+              lastAction === "rejected" ? "bg-red-600" :
+              "bg-blue-600"
+            )}>
+              {lastAction === "approved" ? (
+                <CheckCircle2 className="h-4 w-4 text-white" />
+              ) : lastAction === "rejected" ? (
+                <XCircle className="h-4 w-4 text-white" />
+              ) : (
+                <Send className="h-4 w-4 text-white" />
+              )}
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold">
+                {lastAction === "approved"
+                  ? "Document approved successfully!"
+                  : lastAction === "rejected"
+                    ? "Document rejected."
+                    : "Revision request sent."}
+              </p>
+              <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-0.5">
+                {selectedSub.studentName}&rsquo;s submission has been updated.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className={`grid gap-6 items-start ${isSidePanelCollapsed ? "xl:grid-cols-[1.8fr_64px]" : "xl:grid-cols-[1.45fr_0.95fr]"}`}>
+          <Card className="border border-[hsl(var(--border))] shadow-sm bg-[hsl(var(--card))] overflow-hidden">
+            <CardHeader className="border-b border-[hsl(var(--border))]">
+              <div className="flex items-center gap-4">
+                <div className="h-9 w-9 rounded-lg bg-[hsl(var(--muted))] flex items-center justify-center">
+                  <FileEdit className="h-[18px] w-[18px] text-[hsl(var(--muted-foreground))]" />
+                </div>
                 <div>
-                  <h4 className="font-bold text-slate-800 dark:text-slate-100">{selectedSub.title}</h4>
-                  <p className="text-xs text-slate-500">Submitted by {selectedSub.studentName} on {new Date(selectedSub.submittedAt).toLocaleDateString()}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                    <svg className="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  </button>
-                  <button className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                    <svg className="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0L8 8m4-4v12" /></svg>
-                  </button>
+                  <CardTitle className="text-[15px]">Advisor Feedback</CardTitle>
+                  <CardDescription className="text-[13px]">
+                    {selectedSub ? "Select one word in the editor to open word-specific actions and speech-to-text." : "Choose a student submission from the queue to begin."}
+                  </CardDescription>
                 </div>
               </div>
-
-              {/* Viewer Content */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50 dark:bg-slate-950/20">
-                <div 
-                  ref={contentRef}
-                  onMouseUp={handleTextSelection}
-                  className="max-w-4xl mx-auto bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 min-h-[1000px] p-8 md:p-12 text-slate-800 dark:text-slate-200 font-serif leading-relaxed"
+            </CardHeader>
+            <CardContent className="p-6 space-y-5">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+                  Main Feedback Editor
+                </label>
+                <button
+                  onClick={() => setIsSidePanelCollapsed((current) => !current)}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-semibold uppercase tracking-[0.18em] border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"
                 >
-                  <div className="mb-12 text-center">
-                    <h1 className="text-2xl font-bold uppercase tracking-widest">{selectedSub.type}</h1>
-                    <div className="w-24 h-1 bg-blue-600 mx-auto mt-4" />
+                  {isSidePanelCollapsed ? "Show Side Panel" : "Collapse Side Panel"}
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))] p-4 relative">
+                {!selectedWord && (
+                  <div className="mb-3">
+                    <span className="text-[11px] text-[hsl(var(--muted-foreground))]">
+                      Select or double-click one word in the feedback editor to open a floating popup.
+                    </span>
                   </div>
-                  
-                  {selectedSub.content ? (
-                    <div className="whitespace-pre-wrap selection:bg-blue-100 selection:text-blue-900">
-                      {selectedSub.content}
-                    </div>
-                  ) : (
-                    <div className="py-20 text-center text-slate-400 italic">
-                      No text content available for this submission type.
-                    </div>
-                  )}
+                )}
+
+                <div
+                  ref={editorRef}
+                  contentEditable={Boolean(selectedSub)}
+                  suppressContentEditableWarning
+                  onInput={handleEditorInput}
+                  onMouseUp={handleWordSelection}
+                  onKeyUp={handleWordSelection}
+                  onDoubleClick={handleWordSelection}
+                  className={`min-h-[620px] rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-4 text-[13px] leading-relaxed outline-none whitespace-pre-wrap ${
+                    selectedWord ? "ring-2 ring-orange-300 dark:ring-orange-800" : ""
+                  } ${!selectedSub ? "opacity-60" : ""}`}
+                >
+                  {feedback}
                 </div>
               </div>
 
-              {/* Action Bar */}
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row gap-4 items-center">
-                <input 
-                  type="text" 
-                  value={feedback} 
-                  onChange={e => setFeedback(e.target.value)} 
-                  placeholder="Final feedback or decision notes..."
-                  className="flex-1 w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <div className="flex gap-2 w-full md:w-auto">
-                  <button onClick={() => handleAction("revision")} className="flex-1 md:flex-none px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-amber-600 transition-colors">Revision</button>
-                  <button onClick={() => handleAction("approved")} className="flex-1 md:flex-none px-6 py-2 bg-green-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-green-700 transition-colors">Approve</button>
-                </div>
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/60 px-4 py-3 text-[11px] text-[hsl(var(--muted-foreground))] flex items-center justify-between gap-3">
+                <span>
+                  {isListening
+                    ? "Listening… speech-to-text is writing into the editor."
+                    : selectedWord
+                      ? "Selected word is ready for replacement suggestions."
+                      : "Click a submission, then select one word in the editor to get recommendations."}
+                </span>
+                <span>{feedback.length} characters</span>
               </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-400">Select a submission to review</div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-[hsl(var(--border))]">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleAction("revision")}
+                    disabled={!selectedSub}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border text-[12px] font-semibold uppercase tracking-widest transition-all bg-blue-600 text-white border-blue-600 hover:bg-blue-700 disabled:opacity-40"
+                  >
+                    <Send className="h-4 w-4" />
+                    Mark for Revision
+                  </button>
+                  <button
+                    onClick={() => handleAction("rejected")}
+                    disabled={!selectedSub}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border text-[12px] font-semibold uppercase tracking-widest transition-all border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-red-600 hover:text-white hover:border-red-600 disabled:opacity-40"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Reject
+                  </button>
+                </div>
+
+                <Button
+                  onClick={() => handleAction("approved")}
+                  disabled={!selectedSub}
+                  className="h-10 px-7 bg-[hsl(var(--foreground))] hover:opacity-90 text-[hsl(var(--background))] font-semibold text-[12px] uppercase tracking-widest rounded-lg disabled:opacity-40"
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Approve
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className={isSidePanelCollapsed ? "hidden" : "flex flex-col gap-6"}>
+            <Card className="border border-[hsl(var(--border))] shadow-sm bg-[hsl(var(--card))] overflow-hidden">
+              <CardHeader>
+                <CardTitle className="text-[15px]">Review Queue</CardTitle>
+                <CardDescription className="text-[13px]">Select a student submission to inspect and process.</CardDescription>
+                <div className="flex flex-wrap items-center gap-2 pt-2">
+                  {[
+                    { key: "all", label: "All" },
+                    { key: "pending", label: "Pending" },
+                    { key: "revision", label: "Revision" },
+                    { key: "approved", label: "Approved" },
+                  ].map((item) => (
+                    <button
+                      key={item.key}
+                      onClick={() => setFilter(item.key)}
+                      className={`rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-all ${
+                        filter === item.key
+                          ? "bg-[hsl(var(--foreground))] text-[hsl(var(--background))]"
+                          : "border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </CardHeader>
+              <CardContent className="p-3">
+                {filtered.length === 0 ? (
+                  <div className="py-10 text-center text-[13px] text-[hsl(var(--muted-foreground))]">No submissions found.</div>
+                ) : (
+                  <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto">
+                    {filtered.map((submission) => (
+                      <button
+                        key={submission.id}
+                        onClick={() => handleSelectSubmission(submission.id)}
+                        className={`text-left rounded-xl border p-4 transition-all ${
+                          selectedId === submission.id
+                            ? "border-[hsl(var(--foreground))] bg-[hsl(var(--foreground))] text-[hsl(var(--background))]"
+                            : "border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))]"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${selectedId === submission.id ? "opacity-70" : "text-[hsl(var(--muted-foreground))]"}`}>
+                            {submission.type}
+                          </span>
+                          <span className={`h-2.5 w-2.5 rounded-full ${
+                            submission.status === "approved"
+                              ? "bg-green-500"
+                              : submission.status === "revision"
+                                ? "bg-blue-500"
+                                : submission.status === "rejected"
+                                  ? "bg-red-500"
+                                  : "bg-sti-blue"
+                          }`} />
+                        </div>
+                        <p className="text-[13px] font-semibold mt-2 line-clamp-2">{submission.title}</p>
+                        <p className={`text-[11px] mt-1 ${selectedId === submission.id ? "opacity-70" : "text-[hsl(var(--muted-foreground))]"}`}>
+                          {submission.studentName}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border border-[hsl(var(--border))] shadow-sm bg-[hsl(var(--card))]">
+              <CardHeader>
+                <CardTitle className="text-[15px]">Submission Info</CardTitle>
+                <CardDescription className="text-[13px]">Details for the selected submission.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-2">
+                <div className="flex items-center justify-between rounded-lg border border-transparent px-3 py-3 bg-[hsl(var(--muted))]">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                    <span className="text-[13px] font-semibold">Date</span>
+                  </div>
+                  <span className="text-[12px] text-[hsl(var(--muted-foreground))]">
+                    {selectedSub ? new Date(selectedSub.submittedAt).toLocaleDateString() : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-transparent px-3 py-3 bg-[hsl(var(--muted))]">
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                    <span className="text-[13px] font-semibold">Status</span>
+                  </div>
+                  <span className="text-[12px] text-[hsl(var(--muted-foreground))] uppercase">
+                    {selectedSub?.status || "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-transparent px-3 py-3 bg-[hsl(var(--muted))]">
+                  <div className="flex items-center gap-3">
+                    <FileSearch className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                    <span className="text-[13px] font-semibold">Student</span>
+                  </div>
+                  <span className="text-[12px] text-[hsl(var(--muted-foreground))]">{selectedSub?.studentName || "—"}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+          </div>
+          {isSidePanelCollapsed && (
+            <div className="hidden xl:flex flex-col items-center gap-3 sticky top-6">
+              <button
+                onClick={() => setIsSidePanelCollapsed(false)}
+                className="h-24 w-16 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[11px] font-semibold text-[hsl(var(--muted-foreground))] [writing-mode:vertical-rl] rotate-180 hover:bg-[hsl(var(--muted))]"
+              >
+                Show Side Panel
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Right: Comments System (Threads) */}
-        <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-6">
-          <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-sm">Review Comments</h3>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {selectedSub?.comments && selectedSub.comments.length > 0 ? (
-                selectedSub.comments.map(c => (
-                  <div key={c.id} className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50 relative group">
-                    {c.selectedText && (
-                      <div className="mb-2 pl-2 border-l-2 border-blue-400 italic text-[10px] text-slate-500 line-clamp-2">
-                        "{c.selectedText}"
-                      </div>
-                    )}
-                    <p className="text-xs text-slate-800 dark:text-slate-200 font-medium">{c.text}</p>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">{c.author}</span>
-                      <span className="text-[10px] text-slate-400">{c.time}</span>
-                    </div>
+        {selectedWord && selectionPopup && (
+          <div
+            className="fixed z-50 -translate-x-1/2 -translate-y-full"
+            style={{ top: selectionPopup.top, left: selectionPopup.left }}
+          >
+            <div className="mb-2 w-[320px] rounded-xl border border-orange-200 bg-white shadow-2xl dark:border-orange-900/30 dark:bg-slate-900">
+              <div className="border-b border-orange-200 px-4 py-3 dark:border-orange-900/30">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-md bg-orange-100 px-2.5 py-1 text-[11px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                      {selectedWord}
+                    </span>
+                    <span className="inline-flex items-center rounded-md bg-red-100 px-2.5 py-1 text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                      Suggestion mode
+                    </span>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-10">
-                  <p className="text-xs text-slate-400">No comments yet. Highlight text to add specific feedback.</p>
+                  <button
+                    onClick={() => {
+                      setSelectedWord("");
+                      setReplacementDraft("");
+                      setSelectionPopup(null);
+                    }}
+                    className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                  >
+                    Close
+                  </button>
                 </div>
-              )}
-            </div>
-
-            <div className="p-4 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800">
-              {selectedText && (
-                <div className="mb-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-between">
-                  <p className="text-[10px] text-blue-700 dark:text-blue-300 font-medium truncate italic max-w-[180px]">"{selectedText}"</p>
-                  <button onClick={() => setSelectedText("")} className="text-blue-500 hover:text-blue-700"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                <p className="mt-2 text-[11px] text-[hsl(var(--muted-foreground))]">
+                  Word-specific popup with replacement and speech-to-text actions.
+                </p>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
+                    Recommended words
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {wordSuggestions.slice(0, 3).map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        onClick={() => replaceSelectedWord(suggestion)}
+                        className="inline-flex items-center rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-[11px] font-semibold text-orange-700 hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300 dark:hover:bg-orange-900/30"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              )}
-              <div className="relative">
-                <textarea 
-                  value={newComment} 
-                  onChange={e => setNewComment(e.target.value)} 
-                  placeholder="Add a comment..."
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs outline-none focus:ring-2 focus:ring-blue-500 resize-none pr-10"
-                />
-                <button 
-                  onClick={addComment}
-                  className="absolute bottom-2 right-2 p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={replacementDraft}
+                    onChange={(e) => setReplacementDraft(e.target.value)}
+                    placeholder="Type replacement word"
+                    className="h-10 flex-1 rounded-lg border border-orange-200 bg-white px-3 text-[12px] outline-none dark:border-orange-900/30 dark:bg-slate-950"
+                  />
+                  <button
+                    onClick={() => replaceSelectedWord(replacementDraft.trim() || selectedWord)}
+                    className="h-10 rounded-lg bg-[hsl(var(--foreground))] px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--background))] hover:opacity-90"
+                  >
+                    Replace
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={toggleSpeechToText}
+                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-all ${
+                      isListening
+                        ? "bg-[hsl(var(--foreground))] text-[hsl(var(--background))] border-[hsl(var(--foreground))]"
+                        : "border-orange-200 text-orange-700 hover:bg-orange-100 dark:border-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-900/20"
+                    }`}
+                  >
+                    {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                    {isListening ? "Stop" : "Speech to Text"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-
-          {/* AI Feedback Assistant */}
-          <div className="bg-indigo-600 rounded-2xl p-5 text-white shadow-lg">
-            <h4 className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              AI Assistant
-            </h4>
-            <div className="space-y-3">
-              <button className="w-full text-left p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">
-                <p className="text-[10px] font-bold mb-1">Suggest Feedback</p>
-                <p className="text-[10px] opacity-80 leading-tight">Analyze document for missing requirements or common errors.</p>
-              </button>
-            </div>
-          </div>
-        </div>
-
+        )}
       </div>
     </AdvisorLayout>
   );

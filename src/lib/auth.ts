@@ -15,56 +15,122 @@ export interface User {
   name: string;
   email: string;
   role: "admin" | "advisor" | "student";
+  username?: string;
+}
+
+interface StoredUser extends User {
+  password: string;
 }
 
 export type UserRole = "admin" | "advisor" | "student";
 
-export const DEMO_USERS: Record<UserRole, User> = {
-  admin: {
+const USERS_KEY = "aip_users";
+const SESSION_KEY = "aip_session_user_id";
+
+const DEFAULT_USERS: StoredUser[] = [
+  {
     id: "admin-001",
     studentId: "ADMIN001",
     name: DEMO_ADMIN_NAME,
     email: DEMO_ADMIN_EMAIL,
+    username: "admin",
+    password: "admin",
     role: "admin",
   },
-  advisor: {
+  {
     id: "advisor-001",
     studentId: "ADVISOR001",
     name: DEMO_ADVISOR_NAME,
     email: DEMO_ADVISOR_EMAIL,
+    username: "advisor",
+    password: "advisor",
     role: "advisor",
   },
-  student: {
+  {
     id: "student-001",
     studentId: "STUDENT-001",
     name: DEMO_STUDENT_NAME,
     email: DEMO_STUDENT_EMAIL,
+    username: "student",
+    password: "student",
     role: "student",
   },
-};
+];
 
-export function getSession(): User | null {
-  if (typeof window === "undefined") return null;
-  const role = localStorage.getItem("demo_role") as UserRole | null;
-  if (!role) return null;
-  return DEMO_USERS[role] || null;
+function canUseStorage() {
+  return typeof window !== "undefined";
 }
 
-export function login(role: UserRole): User {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("demo_role", role);
+function sanitizeUser(user: StoredUser): User {
+  const { password, ...safeUser } = user;
+  return safeUser;
+}
+
+function readUsers(): StoredUser[] {
+  if (!canUseStorage()) return DEFAULT_USERS;
+  const raw = localStorage.getItem(USERS_KEY);
+  if (!raw) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
+    return DEFAULT_USERS;
   }
-  return DEMO_USERS[role];
+
+  try {
+    const parsed = JSON.parse(raw) as StoredUser[];
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
+      return DEFAULT_USERS;
+    }
+    return parsed;
+  } catch {
+    localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
+    return DEFAULT_USERS;
+  }
+}
+
+function writeUsers(users: StoredUser[]) {
+  if (!canUseStorage()) return;
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+export function initializeUsers(): void {
+  readUsers();
+}
+
+export function getSession(): User | null {
+  if (!canUseStorage()) return null;
+  initializeUsers();
+  const userId = localStorage.getItem(SESSION_KEY);
+  if (!userId) return null;
+  const user = readUsers().find((item) => item.id === userId);
+  return user ? sanitizeUser(user) : null;
+}
+
+export function login(identifier: string, password: string): User | null {
+  if (!canUseStorage()) return null;
+  initializeUsers();
+
+  const normalizedIdentifier = identifier.trim().toLowerCase();
+  const user = readUsers().find(
+    (item) =>
+      (item.username || "").toLowerCase() === normalizedIdentifier ||
+      item.email.toLowerCase() === normalizedIdentifier ||
+      item.role.toLowerCase() === normalizedIdentifier
+  );
+
+  if (!user || user.password !== password) return null;
+
+  localStorage.setItem(SESSION_KEY, user.id);
+  return sanitizeUser(user);
 }
 
 export function logout(): void {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("demo_role");
-  }
+  if (!canUseStorage()) return;
+  localStorage.removeItem(SESSION_KEY);
 }
 
 export function getUsers(): User[] {
-  return Object.values(DEMO_USERS);
+  initializeUsers();
+  return readUsers().map(sanitizeUser);
 }
 
 export function createUser(data: {
@@ -73,18 +139,43 @@ export function createUser(data: {
   name: string;
   email: string;
   role: UserRole;
+  username?: string;
 }): User | null {
-  const existing = DEMO_USERS[data.role as UserRole];
-  if (existing) return null;
-  return {
+  initializeUsers();
+  const users = readUsers();
+  const normalizedEmail = data.email.trim().toLowerCase();
+  const normalizedStudentId = data.studentId.trim().toLowerCase();
+  const username = (data.username?.trim() || data.name.trim().split(" ")[0] || data.role).toLowerCase();
+
+  const exists = users.some(
+    (user) =>
+      user.email.toLowerCase() === normalizedEmail ||
+      user.studentId.toLowerCase() === normalizedStudentId ||
+      (user.username || "").toLowerCase() === username
+  );
+
+  if (exists) return null;
+
+  const newUser: StoredUser = {
     id: `${data.role}-${Date.now()}`,
-    studentId: data.studentId,
-    name: data.name,
-    email: data.email,
+    studentId: data.studentId.trim(),
+    name: data.name.trim(),
+    email: normalizedEmail,
+    username,
+    password: data.password,
     role: data.role,
   };
+
+  writeUsers([newUser, ...users]);
+  return sanitizeUser(newUser);
 }
 
-export function deleteUser(id: string): void {}
+export function deleteUser(id: string): void {
+  initializeUsers();
+  const users = readUsers().filter((user) => user.id !== id);
+  writeUsers(users.length > 0 ? users : DEFAULT_USERS);
 
-export function initializeUsers(): void {}
+  if (canUseStorage() && localStorage.getItem(SESSION_KEY) === id) {
+    localStorage.removeItem(SESSION_KEY);
+  }
+}
