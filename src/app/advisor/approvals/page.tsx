@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getSession } from "@/lib/auth";
-import AdvisorLayout from "@/components/AdvisorLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -302,7 +301,6 @@ export default function AdvisorApprovals() {
   });
 
   return (
-    <AdvisorLayout activeNav="approvals">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
@@ -639,6 +637,5 @@ export default function AdvisorApprovals() {
           </div>
         )}
       </div>
-    </AdvisorLayout>
   );
 }

@@ -54,17 +54,17 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout activeNav="dashboard">
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-          <p className="text-[13px] text-[hsl(var(--muted-foreground))]">Hello, Student User</p>
-            <h1 className="text-[28px] font-bold tracking-tight mt-1">Dashboard</h1>
+          <p className="text-[12px] text-[hsl(var(--muted-foreground))]">Hello, Student User</p>
+            <h1 className="text-2xl font-bold tracking-tight mt-1">Dashboard</h1>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/admin/batches" className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-[13px] font-semibold hover:opacity-90 transition-opacity">
-              <Plus className="h-4 w-4" /> New Batch
+            <Link href="/admin/batches" className="inline-flex items-center gap-2 h-8 px-4 rounded-lg bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-[12px] font-semibold hover:opacity-90 transition-opacity">
+              <Plus className="h-3.5 w-3.5" /> New Batch
             </Link>
           </div>
         </div>
@@ -72,17 +72,17 @@ export default function AdminDashboard() {
         {/* Stats Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
-            <div key={stat.label} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <div className="h-9 w-9 rounded-lg bg-[hsl(var(--muted))] flex items-center justify-center">
-                  <stat.icon className="h-[18px] w-[18px] text-[hsl(var(--muted-foreground))]" />
+            <div key={stat.label} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-3">
+                <div className="h-8 w-8 rounded-lg bg-[hsl(var(--muted))] flex items-center justify-center">
+                  <stat.icon className="h-[16px] w-[16px] text-[hsl(var(--muted-foreground))]" />
                 </div>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[hsl(var(--muted))] border border-[hsl(var(--border))] text-[11px] font-semibold text-[hsl(var(--muted-foreground))]">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[hsl(var(--muted))] border border-[hsl(var(--border))] text-[10px] font-semibold text-[hsl(var(--muted-foreground))]">
                   {stat.change}
                 </span>
               </div>
-              <div className="text-[28px] font-bold tracking-tight tabular-nums">{stat.value}</div>
-              <p className="text-[12px] font-medium text-[hsl(var(--muted-foreground))] mt-1">{stat.label}</p>
+              <div className="text-2xl font-bold tracking-tight tabular-nums">{stat.value}</div>
+              <p className="text-[11px] font-medium text-[hsl(var(--muted-foreground))] mt-1">{stat.label}</p>
             </div>
           ))}
         </div>

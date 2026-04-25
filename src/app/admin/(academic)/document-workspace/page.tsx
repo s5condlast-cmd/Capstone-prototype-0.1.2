@@ -121,12 +121,21 @@ function getAiSuggestions(submission: Submission | null) {
   return suggestions.slice(0, 4)
 }
 
+function getDefaultSubmission(submissions: Submission[]) {
+  return submissions.find((item) => item.status === "pending") || submissions[0] || null
+}
+
 export default function AdminDocumentWorkspace() {
   const [submissions] = useState<Submission[]>(() => getStoredSubmissions())
-  const [selectedId, setSelectedId] = useState<string | null>(() => getStoredSubmissions()[0]?.id || null)
-  const [editorContent, setEditorContent] = useState(() => getDefaultEditorContent(getStoredSubmissions()[0] || null))
+  const [selectedId, setSelectedId] = useState<string | null>(() => getDefaultSubmission(getStoredSubmissions())?.id || null)
+  const [editorContent, setEditorContent] = useState(() => getDefaultEditorContent(getDefaultSubmission(getStoredSubmissions())))
   const [isListening, setIsListening] = useState(false)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+
+  const sortedSubmissions = useMemo(
+    () => [...submissions].sort((a, b) => Number(b.status === "pending") - Number(a.status === "pending")),
+    [submissions]
+  )
 
   const selectedSubmission = useMemo(
     () => submissions.find((item) => item.id === selectedId) || null,
@@ -221,46 +230,48 @@ export default function AdminDocumentWorkspace() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.45fr_0.85fr] min-h-[720px]">
-          <section className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden flex flex-col">
-            <div className="px-5 py-4 border-b border-[hsl(var(--border))] flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="grid gap-6 xl:grid-cols-[1.08fr_1fr] min-h-[660px]" style={{ '--workspace-width': '740px', '--editor-width': '660px' } as React.CSSProperties}>
+          <section className="w-full xl:max-w-[var(--workspace-width)] xl:justify-self-center rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden flex flex-col">
+            <div className="px-4 py-2.5 border-b border-[hsl(var(--border))] flex flex-col gap-2.5 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-[15px] font-semibold">Admin writing workspace</h2>
-                <p className="text-[12px] text-[hsl(var(--muted-foreground))] mt-1">
+                <h2 className="text-[14px] font-semibold">Admin writing workspace</h2>
+                <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1">
                   {selectedSubmission
                     ? `Editing around ${selectedSubmission.title}`
                     : "Choose a student file from the right side to begin"}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   onClick={toggleSpeechToText}
-                  className={`inline-flex items-center gap-2 h-9 px-4 rounded-lg text-[12px] font-semibold transition-colors ${
+                  className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[11px] font-semibold transition-colors ${
                     isListening
                       ? "bg-red-500 text-white hover:bg-red-600"
                       : "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))]"
                   }`}
                 >
-                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
                   {isListening ? "Stop Dictation" : "Speech to Text"}
                 </button>
                 <button
                   onClick={handleSave}
-                  className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-[12px] font-semibold hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-[11px] font-semibold hover:opacity-90 transition-opacity"
                 >
-                  <Save className="h-4 w-4" /> Save Draft
+                  <Save className="h-3.5 w-3.5" /> Save Draft
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 p-4 md:p-5 bg-[hsl(var(--muted))]/30">
-              <textarea
-                value={editorContent}
-                onChange={(e) => setEditorContent(e.target.value)}
-                placeholder="Write the official student document here or use speech-to-text."
-                className="w-full h-full min-h-[560px] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-5 text-[13px] leading-relaxed outline-none resize-none focus:ring-2 focus:ring-[hsl(var(--foreground))]/10"
-                spellCheck={false}
-              />
+            <div className="flex-1 px-2 pb-4 pt-2 md:px-3 md:pb-5 md:pt-2.5 flex justify-center">
+              <div className="w-full max-w-[var(--editor-width)] rounded-2xl bg-[hsl(var(--muted))]/30 p-2">
+                <textarea
+                  value={editorContent}
+                  onChange={(e) => setEditorContent(e.target.value)}
+                  placeholder="Write the official student document here or use speech-to-text."
+                  className="w-full h-full min-h-[600px] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-5 text-[13px] leading-relaxed outline-none resize-none focus:ring-2 focus:ring-[hsl(var(--foreground))]/10"
+                  spellCheck={false}
+                />
+              </div>
             </div>
           </section>
 
@@ -274,12 +285,12 @@ export default function AdminDocumentWorkspace() {
               </div>
 
               <div className="max-h-[360px] overflow-y-auto">
-                {submissions.length === 0 ? (
+                {sortedSubmissions.length === 0 ? (
                   <div className="px-5 py-16 text-center text-[12px] text-[hsl(var(--muted-foreground))]">
                     No student submissions found yet.
                   </div>
                 ) : (
-                  submissions.map((item) => (
+                  sortedSubmissions.map((item) => (
                     <button
                       key={item.id}
                       onClick={() => handleSelectSubmission(item)}

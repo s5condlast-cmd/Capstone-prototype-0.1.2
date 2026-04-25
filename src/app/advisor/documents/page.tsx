@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSession } from "@/lib/auth";
-import AdvisorLayout from "@/components/AdvisorLayout";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Filter, Search, Eye, Files, CheckCircle2, Clock3, RotateCcw } from "lucide-react";
 
@@ -58,7 +57,6 @@ export default function AdvisorDocuments() {
   };
 
   return (
-    <AdvisorLayout activeNav="documents">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
         <section className="grid gap-4 md:grid-cols-4">
           {[
@@ -186,6 +184,5 @@ export default function AdvisorDocuments() {
           </div>
         </section>
       </div>
-    </AdvisorLayout>
   );
 }

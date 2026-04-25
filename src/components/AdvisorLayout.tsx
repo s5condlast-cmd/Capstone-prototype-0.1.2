@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { getSession, logout, User } from "@/lib/auth"
 import { useTheme } from "@/lib/ThemeContext"
 import Link from "next/link"
-import { 
+import {
   LayoutDashboard,
   Users,
   FileText,
@@ -21,6 +21,7 @@ import {
   Menu,
   Settings,
   Search,
+  type LucideIcon,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -33,22 +34,43 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
-const navItems = [
-  { label: "Search(working)", href: "/advisor/dashboard", icon: LayoutDashboard },
-  { label: "Students", href: "/advisor/students", icon: Users },
-  { label: "Documents", href: "/advisor/documents", icon: FileText },
-  { label: "Approvals", href: "/advisor/approvals", icon: CheckSquare },
-  { label: "Reports", href: "/advisor/reports", icon: BarChart3 },
+type NavItem = {
+  label: string
+  href: string
+  icon: LucideIcon
+  keywords?: string[]
+}
+
+const navItems: NavItem[] = [
+  { label: "Dashboard", href: "/advisor/dashboard", icon: LayoutDashboard, keywords: ["home", "overview"] },
+  { label: "Students", href: "/advisor/students", icon: Users, keywords: ["advisees", "records", "profiles"] },
+  { label: "Documents", href: "/advisor/documents", icon: FileText, keywords: ["files", "repository", "submissions"] },
+  { label: "Approvals", href: "/advisor/approvals", icon: CheckSquare, keywords: ["review", "queue", "approve"] },
+  { label: "Reports", href: "/advisor/reports", icon: BarChart3, keywords: ["analytics", "summary", "charts"] },
 ]
 
-export default function AdvisorLayout({ children, activeNav }: { children: ReactNode; activeNav: string }) {
+const searchableItems: NavItem[] = [
+  ...navItems,
+  { label: "Profile", href: "/advisor/profile", icon: UserIcon, keywords: ["account", "settings"] },
+]
+
+const isRouteActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`)
+
+export default function AdvisorLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const { darkMode, setDarkMode } = useTheme()
   const [session, setSession] = useState<User | null>(null)
   const [mounted, setMounted] = useState(false)
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => pathname.startsWith("/advisor/approvals"))
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [navSearch, setNavSearch] = useState("")
+  const normalizedSearch = navSearch.trim().toLowerCase()
+  const filteredSearchItems = normalizedSearch
+    ? searchableItems.filter((item) =>
+        [item.label, ...(item.keywords || [])].join(" ").toLowerCase().includes(normalizedSearch)
+      )
+    : []
 
   useEffect(() => {
     setMounted(true)
@@ -60,12 +82,6 @@ export default function AdvisorLayout({ children, activeNav }: { children: React
     setSession(s)
   }, [router])
 
-  useEffect(() => {
-    if (pathname === "/advisor/approvals") {
-      setCollapsed(true)
-    }
-  }, [pathname])
-
   if (!mounted || !session) return null
 
   const handleLogout = () => {
@@ -74,10 +90,42 @@ export default function AdvisorLayout({ children, activeNav }: { children: React
     router.push("/login")
   }
 
+  const prepareRouteChange = (href?: string) => {
+    setNavSearch("")
+    setMobileOpen(false)
+    if (href === "/advisor/approvals") setCollapsed(true)
+  }
+
+  const handleRouteChange = (href?: string) => {
+    prepareRouteChange(href)
+    if (href) router.push(href)
+  }
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!normalizedSearch) return
+
+    const firstMatch = filteredSearchItems[0]
+    if (!firstMatch) {
+      toast.error("No advisor pages matched your search.")
+      return
+    }
+
+    handleRouteChange(firstMatch.href)
+  }
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setMobileOpen(false)} />}
-      <aside className={cn("fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-300 shrink-0 md:static md:z-auto", collapsed ? "w-[72px]" : "w-[260px]", mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0")}>
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-300 shrink-0 md:static md:z-auto",
+          collapsed ? "w-[72px]" : "w-[290px]",
+          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        )}
+      >
         <div className={cn("h-16 flex items-center border-b border-[hsl(var(--border))] px-5 shrink-0", collapsed && "justify-center px-0")}>
           <div className="h-8 w-8 rounded-lg bg-[hsl(var(--foreground))] flex items-center justify-center shrink-0">
             <span className="text-[hsl(var(--background))] font-black text-[11px]">AIP</span>
@@ -90,31 +138,30 @@ export default function AdvisorLayout({ children, activeNav }: { children: React
           )}
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
-          {navItems.map((item) => {
-            const active = pathname === item.href
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => {
-                  setCollapsed(true)
-                  setMobileOpen(false)
-                }}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all",
-                  collapsed && "justify-center px-0",
-                  active
-                    ? "bg-[hsl(var(--foreground))] text-[hsl(var(--background))]"
-                    : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]"
-                )}
-                title={collapsed ? item.label : undefined}
-              >
-                <item.icon className="h-[18px] w-[18px] shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            )
-          })}
+        <nav className="flex-1 overflow-y-auto p-3">
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const active = isRouteActive(pathname, item.href)
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => prepareRouteChange(item.href)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all",
+                    collapsed && "justify-center px-0",
+                    active
+                      ? "bg-[hsl(var(--foreground))] text-[hsl(var(--background))]"
+                      : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]"
+                  )}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <item.icon className="h-[18px] w-[18px] shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              )
+            })}
+          </div>
         </nav>
 
         <div className="border-t border-[hsl(var(--border))] p-3 space-y-1">
@@ -137,18 +184,53 @@ export default function AdvisorLayout({ children, activeNav }: { children: React
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="h-16 flex items-center justify-between border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-6 shrink-0">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={() => setMobileOpen(true)}>
+          <div className="flex items-center gap-3 flex-1 max-w-md">
+            <Button variant="ghost" size="icon" className="md:hidden h-9 w-9 shrink-0" onClick={() => setMobileOpen(true)}>
               <Menu className="h-4 w-4" />
             </Button>
-            <div>
-              <h2 className="text-[13px] font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">
-                {navItems.find(item => item.href === pathname)?.label || activeNav}
-              </h2>
-            </div>
+            <form onSubmit={handleSearchSubmit} className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+              <input
+                value={navSearch}
+                onChange={(event) => setNavSearch(event.target.value)}
+                placeholder="Search advisor pages..."
+                aria-label="Search advisor pages"
+                className="w-full h-9 pl-10 pr-4 rounded-lg bg-[hsl(var(--muted))] border-none text-[13px] font-medium text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--foreground))]/10 transition-all"
+              />
+
+              {normalizedSearch && (
+                <div className="absolute left-0 right-0 top-full z-20 mt-2 animate-in fade-in slide-in-from-top-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-1 shadow-sm">
+                  {filteredSearchItems.length > 0 ? (
+                    filteredSearchItems.map((item) => {
+                      const active = isRouteActive(pathname, item.href)
+                      return (
+                        <button
+                          key={item.href}
+                          type="button"
+                          onClick={() => handleRouteChange(item.href)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[12px] font-medium transition-colors",
+                            active
+                              ? "bg-[hsl(var(--foreground))] text-[hsl(var(--background))]"
+                              : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]"
+                          )}
+                        >
+                          <item.icon className="h-4 w-4 shrink-0" />
+                          <span>{item.label}</span>
+                        </button>
+                      )
+                    })
+                  ) : (
+                    <div className="px-3 py-3 text-[12px] text-[hsl(var(--muted-foreground))]">
+                      No advisor pages matched your search.
+                    </div>
+                  )}
+                </div>
+              )}
+            </form>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-4">
             <button className="relative h-9 w-9 rounded-lg flex items-center justify-center hover:bg-[hsl(var(--muted))] transition-colors">
               <Bell className="h-4 w-4" />
               <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-sti-blue" />
@@ -167,7 +249,6 @@ export default function AdvisorLayout({ children, activeNav }: { children: React
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-52" align="end" sideOffset={8}>
-                {/* Header */}
                 <div className="px-3 py-2.5 border-b border-[hsl(var(--border))]">
                   <p className="text-[13px] font-semibold leading-none">{session.name}</p>
                   <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1 uppercase tracking-wider">Advisor</p>
@@ -185,7 +266,7 @@ export default function AdvisorLayout({ children, activeNav }: { children: React
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="flex items-center gap-2.5 px-3 py-2 cursor-pointer text-[13px] rounded-md"
-                    onClick={() => router.push("/advisor/profile")}
+                    onClick={() => handleRouteChange("/advisor/profile")}
                   >
                     <UserIcon className="h-4 w-4 shrink-0" />
                     <span>Profile</span>
@@ -213,7 +294,9 @@ export default function AdvisorLayout({ children, activeNav }: { children: React
         </header>
 
         <main className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-10">
-          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+          <div key={pathname} className="mx-auto w-full max-w-[1400px] animate-in fade-in slide-in-from-bottom-1 duration-200">
+            {children}
+          </div>
         </main>
       </div>
     </div>

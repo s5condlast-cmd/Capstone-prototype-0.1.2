@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { getSession, getUsers, User } from "@/lib/auth"
-import AdvisorLayout from "@/components/AdvisorLayout"
 import Link from "next/link"
 import { 
   Users,
@@ -10,13 +9,9 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowRight,
-  TrendingUp,
-  FileText,
-  BarChart3,
   ShieldCheck,
   ArrowUpRight,
   CircleAlert,
-  Search
 } from "lucide-react"
 
 interface Submission {
@@ -36,7 +31,6 @@ export default function AdvisorDashboard() {
   const [session, setSession] = useState<User | null>(null)
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [students, setStudents] = useState<User[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
     const s = getSession()
@@ -54,7 +48,6 @@ export default function AdvisorDashboard() {
 
   const priorityQueue = submissions
     .filter(s => s.status === "pending" || s.isUrgent)
-    .filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()) || s.studentName.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => Number(b.isUrgent) - Number(a.isUrgent) || new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
     .slice(0, 5)
 
@@ -65,7 +58,6 @@ export default function AdvisorDashboard() {
       return { ...student, approvedCount: approved }
     })
     .filter(s => s.approvedCount < 2)
-    .filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.studentId.toLowerCase().includes(searchQuery.toLowerCase()))
     .slice(0, 3)
 
   const statCards = [
@@ -100,27 +92,12 @@ export default function AdvisorDashboard() {
   ]
 
   return (
-    <AdvisorLayout activeNav="dashboard">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
           <p className="text-[13px] text-[hsl(var(--muted-foreground))]">Hello, {session?.name || "Advisor"}</p>
             <h1 className="text-[28px] font-bold tracking-tight mt-1">Dashboard</h1>
           </div>
-          <Link href="/advisor/approvals" className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-[13px] font-semibold hover:opacity-90 transition-opacity">
-            Review Queue <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-
-        {/* Search Bar */}
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" />
-          <input 
-            placeholder="Search students, submissions..." 
-            className="w-full h-11 pl-10 pr-4 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[13px] font-medium placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--foreground))]/10 transition-all"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-          />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -213,6 +190,5 @@ export default function AdvisorDashboard() {
           </div>
         </div>
       </div>
-    </AdvisorLayout>
   )
 }

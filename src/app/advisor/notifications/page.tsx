@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import AdvisorLayout from "@/components/AdvisorLayout";
 import { Bell, Clock3, FileText, Info, RotateCcw } from "lucide-react";
 
 export default function AdvisorNotifications() {
@@ -15,7 +14,6 @@ export default function AdvisorNotifications() {
   const unreadCount = notifications.filter((notif) => notif.unread).length;
 
   return (
-    <AdvisorLayout activeNav="notifications">
       <div className="mx-auto flex max-w-[1100px] flex-col gap-8">
         <section className="grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:col-span-2">
@@ -87,6 +85,5 @@ export default function AdvisorNotifications() {
           </div>
         </section>
       </div>
-    </AdvisorLayout>
   );
 }

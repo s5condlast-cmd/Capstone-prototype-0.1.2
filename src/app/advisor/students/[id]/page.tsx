@@ -2,7 +2,6 @@
 
 import { use, useEffect, useState } from "react";
 import { getUsers } from "@/lib/auth";
-import AdvisorLayout from "@/components/AdvisorLayout";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Clock3, FileText, MessageSquare } from "lucide-react";
 
@@ -22,11 +21,9 @@ export default function StudentProfile({ params }: { params: Promise<{ id: strin
 
   if (!student) {
     return (
-      <AdvisorLayout activeNav="students">
-        <div className="mx-auto max-w-[1200px] rounded-2xl border border-dashed border-slate-300 px-6 py-20 text-center text-sm text-slate-500 dark:border-slate-700">
-          Student record not found.
-        </div>
-      </AdvisorLayout>
+      <div className="mx-auto max-w-[1200px] rounded-2xl border border-dashed border-slate-300 px-6 py-20 text-center text-sm text-slate-500 dark:border-slate-700">
+        Student record not found.
+      </div>
     );
   }
 
@@ -37,7 +34,6 @@ export default function StudentProfile({ params }: { params: Promise<{ id: strin
   const progress = Math.round((approved / totalRequired) * 100);
 
   return (
-    <AdvisorLayout activeNav="students">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
         <div className="flex items-center gap-3 text-sm text-slate-500">
           <Link href="/advisor/students" className="inline-flex items-center gap-2 font-medium hover:text-blue-600 dark:hover:text-blue-400">
@@ -162,6 +158,5 @@ export default function StudentProfile({ params }: { params: Promise<{ id: strin
           </div>
         </section>
       </div>
-    </AdvisorLayout>
   );
 }

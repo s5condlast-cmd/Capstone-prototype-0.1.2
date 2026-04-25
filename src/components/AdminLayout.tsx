@@ -46,9 +46,8 @@ export default function AdminLayout({ children, activeNav }: { children: React.R
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
       
       <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
-        {/* Top Bar */}
-        <header className="h-16 flex items-center justify-between px-6 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] shrink-0 z-20">
-          <div className="flex items-center gap-3 flex-1 max-w-md">
+        <header className="h-16 flex items-center justify-between px-4 md:px-5 lg:px-6 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] shrink-0 z-20">
+          <div className="flex items-center gap-3 flex-1 max-w-sm lg:max-w-md">
             <button className="md:hidden h-9 w-9 rounded-lg flex items-center justify-center hover:bg-[hsl(var(--muted))] transition-colors shrink-0" onClick={() => setMobileOpen(true)}>
               <Menu className="h-4 w-4" />
             </button>
@@ -62,7 +61,6 @@ export default function AdminLayout({ children, activeNav }: { children: React.R
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Notifications */}
             <button className="relative h-9 w-9 rounded-lg flex items-center justify-center hover:bg-[hsl(var(--muted))] transition-colors">
               <Bell className="h-[18px] w-[18px] text-[hsl(var(--muted-foreground))]" />
               <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-sti-blue" />
@@ -70,7 +68,6 @@ export default function AdminLayout({ children, activeNav }: { children: React.R
 
             <div className="h-6 w-px bg-[hsl(var(--border))] mx-2" />
             
-            {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-3 p-1.5 pr-3 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors outline-none">
                 <Avatar className="h-8 w-8 rounded-lg">
@@ -85,7 +82,6 @@ export default function AdminLayout({ children, activeNav }: { children: React.R
                 <ChevronDown className="hidden sm:block h-3.5 w-3.5 text-[hsl(var(--muted-foreground))] ml-1" />
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-52" align="end" sideOffset={8}>
-                {/* Header */}
                 <div className="px-3 py-2.5 border-b border-[hsl(var(--border))]">
                   <p className="text-[13px] font-semibold leading-none">{session.name}</p>
                   <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1 uppercase tracking-wider">Administrator</p>
@@ -130,9 +126,8 @@ export default function AdminLayout({ children, activeNav }: { children: React.R
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="max-w-[1400px] mx-auto p-6 md:p-8 lg:p-10">
+          <div className="w-full p-4 md:p-5 lg:p-6 xl:p-7">
             {children}
           </div>
         </main>

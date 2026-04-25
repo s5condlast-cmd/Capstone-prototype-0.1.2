@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import AdvisorLayout from "@/components/AdvisorLayout";
 import { CheckCircle2, ListChecks, Plus, SlidersHorizontal } from "lucide-react";
 
 export default function AdvisorRequirements() {
@@ -13,7 +12,6 @@ export default function AdvisorRequirements() {
   ]);
 
   return (
-    <AdvisorLayout activeNav="requirements">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
         <section className="grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -97,6 +95,5 @@ export default function AdvisorRequirements() {
           </div>
         </section>
       </div>
-    </AdvisorLayout>
   );
 }

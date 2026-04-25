@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { getSession, getUsers } from "@/lib/auth";
-import AdvisorLayout from "@/components/AdvisorLayout";
 import { BarChart3, CheckCircle2, Clock3, TrendingUp, TriangleAlert } from "lucide-react";
 
 export default function AdvisorReports() {
@@ -28,7 +27,6 @@ export default function AdvisorReports() {
   const bars = [38, 60, 42, 74, 58, 28, 66];
 
   return (
-    <AdvisorLayout activeNav="reports">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
@@ -120,6 +118,5 @@ export default function AdvisorReports() {
           </div>
         </section>
       </div>
-    </AdvisorLayout>
   );
 }

@@ -1,8 +1,5 @@
-"use client";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { redirect } from "next/navigation"
+
 export default function AdvisorIndex() {
-  const router = useRouter();
-  useEffect(() => { router.replace("/advisor/dashboard"); }, [router]);
-  return null;
+  redirect("/advisor/dashboard")
 }

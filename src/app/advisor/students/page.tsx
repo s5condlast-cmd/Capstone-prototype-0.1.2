@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSession, getUsers } from "@/lib/auth";
-import AdvisorLayout from "@/components/AdvisorLayout";
 import Link from "next/link";
 import { Search, Users, TriangleAlert, CheckCircle2, ArrowRight } from "lucide-react";
 
@@ -61,7 +60,6 @@ export default function AdvisorStudents() {
   };
 
   return (
-    <AdvisorLayout activeNav="students">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-8">
         <section className="grid gap-4 md:grid-cols-3">
           {[
@@ -175,6 +173,5 @@ export default function AdvisorStudents() {
           )}
         </section>
       </div>
-    </AdvisorLayout>
   );
 }

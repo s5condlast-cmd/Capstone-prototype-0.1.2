@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { getSession } from "@/lib/auth"
-import AdvisorLayout from "@/components/AdvisorLayout"
 import { Lock, Mail, Users } from "lucide-react"
 
 export default function AdvisorProfile() {
@@ -15,7 +14,6 @@ export default function AdvisorProfile() {
   if (!session) return null
 
   return (
-    <AdvisorLayout activeNav="profile">
       <div className="max-w-4xl mx-auto">
         <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
           <div className="h-32 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-800 dark:to-slate-900" />
@@ -80,6 +78,5 @@ export default function AdvisorProfile() {
           </div>
         </div>
       </div>
-    </AdvisorLayout>
   )
 }

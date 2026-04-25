@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSession } from "@/lib/auth";
-import AdvisorLayout from "@/components/AdvisorLayout";
 
 interface Submission {
   id: string;
@@ -62,7 +61,6 @@ export default function AdvisorSubmissions() {
   };
 
   return (
-    <AdvisorLayout activeNav="submissions">
       <div className="max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-6 md:gap-8 items-start">
         <div className="flex-1 w-full space-y-6">
           <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm w-fit">
@@ -194,6 +192,5 @@ export default function AdvisorSubmissions() {
           )}
         </div>
       </div>
-    </AdvisorLayout>
   );
 }
