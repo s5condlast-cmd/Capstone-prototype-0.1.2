@@ -348,7 +348,7 @@ export default function AdvisorApprovals() {
           </div>
         )}
 
-        <div className={`grid gap-6 items-start ${isSidePanelCollapsed ? "xl:grid-cols-[1.8fr_64px]" : "xl:grid-cols-[1.45fr_0.95fr]"}`}>
+        <div className={`grid gap-6 items-start ${isSidePanelCollapsed ? "lg:grid-cols-[1fr_64px]" : "lg:grid-cols-[1fr_280px]"}`}>
           <Card className="border border-[hsl(var(--border))] shadow-sm bg-[hsl(var(--card))] overflow-hidden">
             <CardHeader className="border-b border-[hsl(var(--border))]">
               <div className="flex items-center gap-4">
@@ -393,7 +393,7 @@ export default function AdvisorApprovals() {
                   onMouseUp={handleWordSelection}
                   onKeyUp={handleWordSelection}
                   onDoubleClick={handleWordSelection}
-                  className={`min-h-[620px] rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-4 text-[13px] leading-relaxed outline-none whitespace-pre-wrap ${
+                  className={`min-h-[480px] rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-4 text-[13px] leading-relaxed outline-none whitespace-pre-wrap ${
                     selectedWord ? "ring-2 ring-orange-300 dark:ring-orange-800" : ""
                   } ${!selectedSub ? "opacity-60" : ""}`}
                 >
@@ -474,12 +474,12 @@ export default function AdvisorApprovals() {
                 {filtered.length === 0 ? (
                   <div className="py-10 text-center text-[13px] text-[hsl(var(--muted-foreground))]">No submissions found.</div>
                 ) : (
-                  <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto">
+                  <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto">
                     {filtered.map((submission) => (
                       <button
                         key={submission.id}
                         onClick={() => handleSelectSubmission(submission.id)}
-                        className={`text-left rounded-xl border p-4 transition-all ${
+                        className={`text-left rounded-xl border p-3 transition-all ${
                           selectedId === submission.id
                             ? "border-[hsl(var(--foreground))] bg-[hsl(var(--foreground))] text-[hsl(var(--background))]"
                             : "border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))]"
@@ -546,7 +546,7 @@ export default function AdvisorApprovals() {
 
           </div>
           {isSidePanelCollapsed && (
-            <div className="hidden xl:flex flex-col items-center gap-3 sticky top-6">
+            <div className="hidden lg:flex flex-col items-center gap-3 sticky top-6">
               <button
                 onClick={() => setIsSidePanelCollapsed(false)}
                 className="h-24 w-16 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[11px] font-semibold text-[hsl(var(--muted-foreground))] [writing-mode:vertical-rl] rotate-180 hover:bg-[hsl(var(--muted))]"

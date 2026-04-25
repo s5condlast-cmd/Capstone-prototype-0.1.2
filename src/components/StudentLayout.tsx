@@ -77,7 +77,7 @@ export default function StudentLayout({ children, activeNav }: { children: React
   return (
     <div className="flex h-screen overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setMobileOpen(false)} />}
-      <aside className={cn("fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-300 shrink-0 md:static md:z-auto", collapsed ? "w-[72px]" : "w-[260px]", mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0") }>
+      <aside className={cn("fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-300 shrink-0 md:static md:z-auto", collapsed ? "w-[64px]" : "w-[220px]", mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0") }>
         <div className={cn("h-16 flex items-center border-b border-[hsl(var(--border))] px-5 shrink-0", collapsed && "justify-center px-0")}>
           <div className="h-8 w-8 rounded-lg bg-[hsl(var(--foreground))] flex items-center justify-center shrink-0">
             <span className="text-[hsl(var(--background))] font-black text-[11px]">AIP</span>

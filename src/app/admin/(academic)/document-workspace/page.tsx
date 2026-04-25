@@ -230,8 +230,8 @@ export default function AdminDocumentWorkspace() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.08fr_1fr] min-h-[660px]" style={{ '--workspace-width': '740px', '--editor-width': '660px' } as React.CSSProperties}>
-          <section className="w-full xl:max-w-[var(--workspace-width)] xl:justify-self-center rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden flex flex-col">
+        <div className="grid gap-6 lg:grid-cols-[1fr_300px] min-h-[480px]">
+          <section className="w-full xl:max-w-[800px] xl:justify-self-center rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden flex flex-col">
             <div className="px-4 py-2.5 border-b border-[hsl(var(--border))] flex flex-col gap-2.5 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-[14px] font-semibold">Admin writing workspace</h2>
@@ -263,12 +263,12 @@ export default function AdminDocumentWorkspace() {
             </div>
 
             <div className="flex-1 px-2 pb-4 pt-2 md:px-3 md:pb-5 md:pt-2.5 flex justify-center">
-              <div className="w-full max-w-[var(--editor-width)] rounded-2xl bg-[hsl(var(--muted))]/30 p-2">
+              <div className="w-full max-w-[640px] rounded-2xl bg-[hsl(var(--muted))]/30 p-2">
                 <textarea
                   value={editorContent}
                   onChange={(e) => setEditorContent(e.target.value)}
                   placeholder="Write the official student document here or use speech-to-text."
-                  className="w-full h-full min-h-[600px] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-5 text-[13px] leading-relaxed outline-none resize-none focus:ring-2 focus:ring-[hsl(var(--foreground))]/10"
+                  className="w-full h-full min-h-[320px] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-5 text-[13px] leading-relaxed outline-none resize-none focus:ring-2 focus:ring-[hsl(var(--foreground))]/10"
                   spellCheck={false}
                 />
               </div>
@@ -284,7 +284,7 @@ export default function AdminDocumentWorkspace() {
                 </p>
               </div>
 
-              <div className="max-h-[360px] overflow-y-auto">
+              <div className="max-h-[280px] overflow-y-auto">
                 {sortedSubmissions.length === 0 ? (
                   <div className="px-5 py-16 text-center text-[12px] text-[hsl(var(--muted-foreground))]">
                     No student submissions found yet.
